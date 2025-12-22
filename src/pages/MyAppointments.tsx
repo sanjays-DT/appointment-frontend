@@ -21,7 +21,14 @@ const MyAppointments: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<{ [key: string]: string }>({});
 
   const isActionAllowed = (status: string) =>
-    status === "pending" ;
+    status === "pending";
+
+  // ⏱️ Minimum selectable datetime = now + 30 minutes
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    return now.toISOString().slice(0, 16);
+  };
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -42,7 +49,6 @@ const MyAppointments: React.FC = () => {
   }, []);
 
   const handleCancel = async (id: string) => {
-
     if (!window.confirm("Do you want to cancel this appointment?")) return;
 
     try {
@@ -70,21 +76,38 @@ const MyAppointments: React.FC = () => {
       toast.error("Please select a new date/time");
       return;
     }
+
+    const selectedDate = new Date(newStart);
+    const now = new Date();
+    const minAllowedTime = new Date(now.getTime() + 30 * 60 * 1000);
+
+    if (selectedDate < minAllowedTime) {
+      toast.error("Please select a time at least 30 minutes from now.");
+      return;
+    }
+
     if (!window.confirm("Do you want to reschedule this appointment?")) return;
 
     try {
-      const newEnd = new Date(new Date(newStart).getTime() + 60 * 60 * 1000);
+      const newEnd = new Date(selectedDate.getTime() + 60 * 60 * 1000);
+
       await api.put(`/appointment/${appt._id}/reschedule`, {
-        start: newStart,
+        start: selectedDate,
         end: newEnd,
       });
+
       setAppointments((prev) =>
         prev.map((a) =>
           a._id === appt._id
-            ? { ...a, start: newStart, end: newEnd.toISOString() }
+            ? {
+                ...a,
+                start: selectedDate.toISOString(),
+                end: newEnd.toISOString(),
+              }
             : a
         )
       );
+
       toast.success("Appointment rescheduled successfully!");
     } catch (err) {
       console.error(err);
@@ -115,7 +138,6 @@ const MyAppointments: React.FC = () => {
                 key={appt._id}
                 className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition flex flex-col"
               >
-                {/* Provider Info */}
                 <h2 className="text-lg font-semibold text-gray-800">
                   {appt.providerId?.name}
                 </h2>
@@ -123,7 +145,6 @@ const MyAppointments: React.FC = () => {
                   {appt.providerId?.speciality || "No speciality"}
                 </p>
 
-                {/* Time */}
                 <div className="text-gray-700 text-sm mb-2">
                   <p>
                     <span className="font-medium">Start:</span>{" "}
@@ -135,24 +156,24 @@ const MyAppointments: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Status */}
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-2 ${appt.status === "approved"
-                    ? "bg-green-100 text-green-700"
-                    : appt.status === "pending"
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-2 ${
+                    appt.status === "approved"
+                      ? "bg-green-100 text-green-700"
+                      : appt.status === "pending"
                       ? "bg-yellow-100 text-yellow-700"
                       : "bg-red-100 text-red-700"
-                    }`}
+                  }`}
                 >
                   {appt.status}
                 </span>
 
-                {/* Reschedule */}
                 <div className="flex flex-col mb-2">
                   <input
                     type="datetime-local"
+                    min={getMinDateTime()}
                     className="border border-gray-300 rounded-lg p-1.5 text-sm"
-                    value={selectedSlot[appt._id] || appt.start.slice(0, 16)}
+                    value={selectedSlot[appt._id] || ""}
                     onChange={(e) =>
                       setSelectedSlot((prev) => ({
                         ...prev,
@@ -163,23 +184,24 @@ const MyAppointments: React.FC = () => {
                   <button
                     onClick={() => handleReschedule(appt)}
                     disabled={!isActionAllowed(appt.status)}
-                    className={`mt-2 py-1.5 rounded text-white text-sm transition ${!isActionAllowed(appt.status)
+                    className={`mt-2 py-1.5 rounded text-white text-sm transition ${
+                      !isActionAllowed(appt.status)
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-blue-500 hover:bg-blue-600"
-                      }`}
+                    }`}
                   >
                     Reschedule
                   </button>
                 </div>
 
-                {/* Cancel */}
                 <button
                   onClick={() => handleCancel(appt._id)}
                   disabled={!isActionAllowed(appt.status)}
-                  className={`mt-1 py-1.5 rounded text-white text-sm transition ${!isActionAllowed(appt.status)
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-red-500 hover:bg-red-600"
-                    }`}
+                  className={`mt-1 py-1.5 rounded text-white text-sm transition ${
+                    !isActionAllowed(appt.status)
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-red-500 hover:bg-red-600"
+                  }`}
                 >
                   Cancel
                 </button>
