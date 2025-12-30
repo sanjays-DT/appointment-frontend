@@ -1,4 +1,3 @@
-// ProviderCard.tsx (compact version)
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -39,10 +38,10 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
 
         {/* Provider Info */}
         <div className="flex flex-col items-center text-center">
-          <h2 className="font-semibold text-base text-gray-800">{name}</h2>
-          <p className="text-blue-600 text-sm">{speciality}</p>
-          <p className="text-green-500 text-sm font-medium">₹{hourlyPrice}/hr</p>
-          <p className="text-gray-500 text-xs mt-0.5">{city}</p>
+          <h2 className="text-lg font-semibold text-gray-800">{name}</h2>
+          <p className="text-blue-600 text-sm mt-1">{speciality}</p>
+          <p className="mt-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">₹{hourlyPrice}/hr</p>
+          <p className="text-gray-500 text-xs mt-0.5">📍{city}</p>
         </div>
       </div>
     </Link>
