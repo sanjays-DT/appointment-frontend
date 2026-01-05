@@ -1,18 +1,21 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // useNavigate for navigation
 import { useAuth } from "../context/AuthContext.tsx";
 import NotificationsDropdown from "./NotificationsDropdown.tsx";
+import { baseURL } from "../api/axios.ts";
 
 export default function Navbar() {
   const { user, token, logout } = useAuth();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isLoggedIn = !!user && !!token;
 
+  const avatarSrc = user && user.id ? `${baseURL}/usersImage/${user.id}/avatar` : "/default-avatar.png";
+
   return (
     <nav className="bg-white shadow-md px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-
         {/* Left section */}
         <div className="flex items-center space-x-8">
           <Link
@@ -44,10 +47,14 @@ export default function Navbar() {
         <div className="hidden md:flex items-center space-x-6">
           {isLoggedIn ? (
             <>
-              <div className="flex items-center space-x-3">
+              {/* Profile pic + name navigates to /profile */}
+              <div
+                className="flex items-center space-x-3 cursor-pointer"
+                onClick={() => navigate("/profile")}
+              >
                 <img
-                  src={user.avatar || "/default-avatar.png"}
-                  alt={user.name}
+                  src={avatarSrc}
+                  alt={user?.name || "Avatar"}
                   className="w-10 h-10 rounded-full object-cover border"
                 />
                 <span className="text-gray-800 font-medium truncate max-w-[120px]">
@@ -128,13 +135,22 @@ export default function Navbar() {
                 My Appointments
               </Link>
 
-              <div className="flex items-center space-x-3 px-3 py-2">
+              {/* Mobile profile pic + name click-to-profile */}
+              <div
+                className="flex items-center space-x-3 px-3 py-2 cursor-pointer"
+                onClick={() => {
+                  navigate("/profile");
+                  setMenuOpen(false);
+                }}
+              >
                 <img
-                  src={user.avatar || "/default-avatar.png"}
-                  alt={user.name}
+                  src={avatarSrc}
+                  alt={user?.name || "Avatar"}
                   className="w-8 h-8 rounded-full object-cover"
                 />
-                <span className="text-gray-800 font-medium text-sm">{user.name}</span>
+                <span className="text-gray-800 font-medium text-sm truncate max-w-[120px]">
+                  {user.name}
+                </span>
               </div>
 
               <button
