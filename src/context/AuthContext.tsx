@@ -8,12 +8,18 @@ import React, {
 import api from "../api/axios.ts";
 import { useNavigate } from "react-router-dom";
 
+/* ================= TYPES ================= */
+
 interface User {
+  id: any;
   _id: string;
   name: string;
   email: string;
   role?: string;
-  avatar?: string;
+  avatar?: {
+    data: any;        
+    contentType: string;
+  } | null;
 }
 
 interface AuthResponse {
@@ -26,18 +32,15 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
-  register: (body: {
-    name: string;
-    email: string;
-    password: string;
-    avatar?: string;
-  }) => Promise<AuthResponse>;
+  register: (data: FormData) => Promise<AuthResponse>; // ✅ CHANGED
   logout: () => void;
 }
 
 interface Props {
   children: ReactNode;
 }
+
+/* ================= CONTEXT ================= */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -53,30 +56,31 @@ export const AuthProvider = ({ children }: Props) => {
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("token") || null;
+    return localStorage.getItem("token");
   });
 
   const [loading, setLoading] = useState(false);
+
+  /* ================= EFFECTS ================= */
 
   useEffect(() => {
     if (token) localStorage.setItem("token", token);
     else localStorage.removeItem("token");
   }, [token]);
 
-  
   useEffect(() => {
     if (user) localStorage.setItem("user", JSON.stringify(user));
     else localStorage.removeItem("user");
   }, [user]);
 
-  
   useEffect(() => {
     if (token && user) {
       navigate("/categories");
     }
   }, []);
 
-  
+  /* ================= AUTH FUNCTIONS ================= */
+
   const login = async (
     email: string,
     password: string
@@ -89,48 +93,41 @@ export const AuthProvider = ({ children }: Props) => {
       setToken(token);
       setUser(user);
 
-      setLoading(false);
-
       navigate("/categories");
-
       return { ok: true };
     } catch (err: any) {
-      setLoading(false);
-
       return {
         ok: false,
         error: err.response?.data?.message || err.message,
       };
+    } finally {
+      setLoading(false);
     }
   };
 
-  
-  const register = async (body: {
-    name: string;
-    email: string;
-    password: string;
-    avatar?: string;
-  }): Promise<AuthResponse> => {
+  const register = async (data: FormData): Promise<AuthResponse> => {
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", body);
+      const res = await api.post("/auth/register", data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       const { token, user } = res.data;
 
       setToken(token);
       setUser(user);
 
-      setLoading(false);
-
       navigate("/login");
-
       return { ok: true };
     } catch (err: any) {
-      setLoading(false);
-
       return {
         ok: false,
         error: err.response?.data?.message || err.message,
       };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -155,6 +152,8 @@ export const AuthProvider = ({ children }: Props) => {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
   return ctx;
 };
