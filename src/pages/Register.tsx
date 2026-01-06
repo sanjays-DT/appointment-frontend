@@ -42,16 +42,16 @@ export default function Register() {
       isValid = false;
     }
 
-    if (!avatar) {
-      newErrors.avatar = "Please upload an avatar image";
-      isValid = false;
-    } else if (!avatar.type.startsWith("image/")) {
-      newErrors.avatar = "Only image files are allowed";
-      isValid = false;
-    } else if (avatar.size > 2 * 1024 * 1024) {
-      newErrors.avatar = "Image size must be less than 2MB";
-      isValid = false;
+    if (avatar) {
+      if (!avatar.type.startsWith("image/")) {
+        newErrors.avatar = "Only image files are allowed";
+        isValid = false;
+      } else if (avatar.size > 2 * 1024 * 1024) {
+        newErrors.avatar = "Image size must be less than 2MB";
+        isValid = false;
+      }
     }
+
 
     setErrors(newErrors);
     return isValid;

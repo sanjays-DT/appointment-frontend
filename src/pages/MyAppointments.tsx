@@ -21,7 +21,7 @@ const MyAppointments: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<{ [key: string]: string }>({});
 
   const isActionAllowed = (status: string) =>
-    status === "pending";
+    status === "pending" || status === "missed";
 
   // ⏱️ Minimum selectable datetime = now + 30 minutes
   const getMinDateTime = () => {
@@ -100,10 +100,10 @@ const MyAppointments: React.FC = () => {
         prev.map((a) =>
           a._id === appt._id
             ? {
-                ...a,
-                start: selectedDate.toISOString(),
-                end: newEnd.toISOString(),
-              }
+              ...a,
+              start: selectedDate.toISOString(),
+              end: newEnd.toISOString(),
+            }
             : a
         )
       );
@@ -157,17 +157,25 @@ const MyAppointments: React.FC = () => {
                 </div>
 
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-2 ${
-                    appt.status === "approved"
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-2 
+                    ${appt.status === "approved"
                       ? "bg-green-100 text-green-700"
                       : appt.status === "pending"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
+                        ? "bg-yellow-100 text-yellow-700"
+                        : appt.status === "missed"
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-red-100 text-red-700"
+                    }`}
                 >
                   {appt.status}
                 </span>
 
+                {appt.status === "missed" && (
+                  <p className="text-xs text-orange-600 mb-2">
+                    Admin missed this appointment. Please reschedule.
+                  </p>
+                )}
+               
                 <div className="flex flex-col mb-2">
                   <input
                     type="datetime-local"
@@ -184,11 +192,10 @@ const MyAppointments: React.FC = () => {
                   <button
                     onClick={() => handleReschedule(appt)}
                     disabled={!isActionAllowed(appt.status)}
-                    className={`mt-2 py-1.5 rounded text-white text-sm transition ${
-                      !isActionAllowed(appt.status)
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-blue-500 hover:bg-blue-600"
-                    }`}
+                    className={`mt-2 py-1.5 rounded text-white text-sm transition ${!isActionAllowed(appt.status)
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 hover:bg-blue-600"
+                      }`}
                   >
                     Reschedule
                   </button>
@@ -197,11 +204,10 @@ const MyAppointments: React.FC = () => {
                 <button
                   onClick={() => handleCancel(appt._id)}
                   disabled={!isActionAllowed(appt.status)}
-                  className={`mt-1 py-1.5 rounded text-white text-sm transition ${
-                    !isActionAllowed(appt.status)
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-red-500 hover:bg-red-600"
-                  }`}
+                  className={`mt-1 py-1.5 rounded text-white text-sm transition ${!isActionAllowed(appt.status)
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-red-500 hover:bg-red-600"
+                    }`}
                 >
                   Cancel
                 </button>
