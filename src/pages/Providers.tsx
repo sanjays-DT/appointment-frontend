@@ -21,12 +21,9 @@ export default function Providers() {
     const fetchProviders = async () => {
       try {
         const res = await api.get<Provider[]>("/providers");
-
-        // Filter providers by category
         const filtered = res.data.filter(
           (p) => p.categoryId?._id === categoryId
         );
-
         setProviders(filtered);
       } catch (err) {
         console.error(err);
@@ -37,18 +34,32 @@ export default function Providers() {
   }, [categoryId]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center sm:text-left">
-          Available Providers
-        </h1>
-
-        {providers.length === 0 ? (
-          <p className="text-gray-600 text-lg text-center">
-            No providers found.
+    <div className="min-h-screen bg-background-light dark:bg-background-dark transition-theme">
+      {/* ===== Hero Section ===== */}
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 px-6 py-14">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white">
+            Available Providers
+          </h1>
+          <p className="text-indigo-100 mt-3 max-w-xl">
+            Browse professionals offering services in this category
           </p>
+        </div>
+      </div>
+
+      {/* ===== Providers Grid ===== */}
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {providers.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-xl font-semibold text-text-light dark:text-text-dark">
+              No providers found
+            </p>
+            <p className="text-muted-light dark:text-muted-dark mt-2">
+              Please check back later or explore another category
+            </p>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {providers.map((provider) => (
               <ProviderCard
                 key={provider._id}
@@ -58,7 +69,7 @@ export default function Providers() {
                 hourlyPrice={provider.hourlyPrice}
                 city={provider.city}
                 avatar={`${process.env.REACT_APP_API_URL}/providers/${provider._id}/avatar`}
-                address="" 
+                address=""
               />
             ))}
           </div>

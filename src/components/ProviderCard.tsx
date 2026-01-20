@@ -6,7 +6,7 @@ interface ProviderCardProps {
   name: string;
   speciality: string;
   hourlyPrice: number;
-  address:string;
+  address: string;
   city: string;
   avatar?: string;
 }
@@ -16,32 +16,75 @@ const ProviderCard: React.FC<ProviderCardProps> = ({
   name,
   speciality,
   hourlyPrice,
-  address,
   city,
   avatar,
 }) => {
   return (
     <Link to={`/provider/${id}`} className="group">
-      <div className="bg-white shadow-sm rounded-xl p-3 flex flex-col items-center space-y-1 transform transition duration-200 hover:scale-105 hover:shadow-md">
+      <div
+        className="
+          rounded-2xl p-5 h-full
+          shadow-sm hover:shadow-xl
+          transition-all duration-300 hover:-translate-y-1
+          bg-surface-light dark:bg-surface-dark
+          border border-border-light dark:border-border-dark
+          transition-theme
+        "
+      >
         {/* Avatar */}
-        {avatar ? (
-          <img
-            src={avatar}
-            alt={name}
-            className="w-16 h-16 rounded-full object-cover ring-1 ring-blue-100 transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs ring-1 ring-blue-100">
-            No Image
-          </div>
-        )}
+        <div className="flex justify-center">
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={name}
+              className="
+                w-20 h-20 rounded-full object-cover
+                ring-4 ring-blue-100 dark:ring-blue-300
+                transition-transform duration-300 group-hover:scale-105
+              "
+            />
+          ) : (
+            <div
+              className="
+                w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700
+                flex items-center justify-center
+                text-gray-500 dark:text-gray-300 text-sm
+                ring-4 ring-blue-100 dark:ring-blue-300
+              "
+            >
+              No Image
+            </div>
+          )}
+        </div>
 
-        {/* Provider Info */}
-        <div className="flex flex-col items-center text-center">
-          <h2 className="text-lg font-semibold text-gray-800">{name}</h2>
-          <p className="text-blue-600 text-sm mt-1">{speciality}</p>
-          <p className="mt-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">₹{hourlyPrice}/hr</p>
-          <p className="text-gray-500 text-xs mt-0.5">📍{city}</p>
+        {/* Info */}
+        <div className="text-center mt-4">
+          <h2 className="text-lg font-bold text-text-light dark:text-text-dark leading-tight">
+            {name}
+          </h2>
+
+          <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">
+            {speciality}
+          </p>
+
+          {/* Price */}
+          <div className="mt-4">
+            <span
+              className="
+                inline-block bg-green-100 dark:bg-green-800
+                text-green-700 dark:text-green-200
+                px-4 py-1 rounded-full
+                text-sm font-semibold
+              "
+            >
+              ₹{hourlyPrice}/hr
+            </span>
+          </div>
+
+          {/* Location */}
+          <p className="text-muted-light dark:text-muted-dark text-sm mt-3">
+            📍 {city}
+          </p>
         </div>
       </div>
     </Link>

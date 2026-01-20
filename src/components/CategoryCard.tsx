@@ -10,24 +10,37 @@ interface CategoryCardProps {
 
 const CategoryCard: React.FC<CategoryCardProps> = ({ id, name, description, image }) => {
   return (
-    <Link to={`/providers/${id}`} className="group">
-      <div className="bg-white rounded-xl shadow-md overflow-hidden transform transition duration-300 hover:scale-105 hover:shadow-xl">
+    <Link to={`/providers/${id}`} className="group relative">
+      <div className="relative rounded-2xl overflow-hidden shadow-lg
+                      transform transition duration-500 hover:scale-105 hover:shadow-2xl
+                      border border-border-light dark:border-border-dark
+                      bg-surface-light dark:bg-surface-dark transition-theme">
+        
         {/* Image */}
-        <div className="h-48 overflow-hidden rounded-t-2xl">
+        <div className="relative h-48 overflow-hidden rounded-t-2xl">
           <img
             src={image}
             alt={name}
-           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-30"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent
+                          transition-opacity duration-500 group-hover:opacity-60"></div>
         </div>
 
-        {/* Text */}
-        <div className="p-5 flex flex-col flex-1">
-          <h2 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition">{name}</h2>
-          <p className="text-gray-600 text-sm mt-2 line-clamp-3 flex-1">{description}</p>
-           <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition">
-            View Providers →
+        {/* Content */}
+        <div className="p-5 flex flex-col gap-2">
+          <h2 className="text-xl font-bold text-text-light dark:text-text-dark
+                         group-hover:text-blue-600 transition-colors">
+            {name}
+          </h2>
+          <p className="text-muted-light dark:text-muted-dark text-sm line-clamp-3">
+            {description}
+          </p>
+
+          {/* CTA Button */}
+          <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg font-semibold text-sm shadow
+                             hover:bg-blue-700 hover:scale-105 transition-all duration-300">
+            Book Now →
           </button>
         </div>
       </div>
