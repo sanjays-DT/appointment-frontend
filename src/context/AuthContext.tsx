@@ -1,3 +1,5 @@
+'use client';
+
 import React, {
   createContext,
   useContext,
@@ -11,15 +13,10 @@ import { useNavigate } from "react-router-dom";
 /* ================= TYPES ================= */
 
 interface User {
-  id: any;
-  _id: string;
+  id: string;
   name: string;
   email: string;
   role?: string;
-  avatar?: {
-    data: any;        
-    contentType: string;
-  } | null;
 }
 
 interface AuthResponse {
@@ -31,55 +28,46 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<AuthResponse>;
-  register: (data: FormData) => Promise<AuthResponse>; // ✅ CHANGED
-  logout: () => void;
-}
 
-interface Props {
-  children: ReactNode;
+  login: (email: string, password: string) => Promise<AuthResponse>;
+  register: (data: FormData) => Promise<AuthResponse>;
+  logout: () => void;
 }
 
 /* ================= CONTEXT ================= */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+interface Props {
+  children: ReactNode;
+}
+
 export const AuthProvider = ({ children }: Props) => {
   const navigate = useNavigate();
 
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  });
-
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("token");
-  });
-
+  const [user, setUser] = useState<User | null>(() =>
+    JSON.parse(localStorage.getItem("user") || "null")
+  );
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("token")
+  );
   const [loading, setLoading] = useState(false);
 
-  /* ================= EFFECTS ================= */
+  /* ================= PERSIST ================= */
 
   useEffect(() => {
-    if (token) localStorage.setItem("token", token);
-    else localStorage.removeItem("token");
+    token
+      ? localStorage.setItem("token", token)
+      : localStorage.removeItem("token");
   }, [token]);
 
   useEffect(() => {
-    if (user) localStorage.setItem("user", JSON.stringify(user));
-    else localStorage.removeItem("user");
+    user
+      ? localStorage.setItem("user", JSON.stringify(user))
+      : localStorage.removeItem("user");
   }, [user]);
 
-  useEffect(() => {
-    if (token && user) {
-      navigate("/categories");
-    }
-  }, []);
-
-  /* ================= AUTH FUNCTIONS ================= */
+  /* ================= LOGIN ================= */
 
   const login = async (
     email: string,
@@ -88,6 +76,7 @@ export const AuthProvider = ({ children }: Props) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
+
       const { token, user } = res.data;
 
       setToken(token);
@@ -105,20 +94,14 @@ export const AuthProvider = ({ children }: Props) => {
     }
   };
 
+  /* ================= REGISTER ================= */
+
   const register = async (data: FormData): Promise<AuthResponse> => {
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", data, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      await api.post("/auth/register", data, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-
-      const { token, user } = res.data;
-
-      setToken(token);
-      setUser(user);
-
       navigate("/login");
       return { ok: true };
     } catch (err: any) {
@@ -131,29 +114,37 @@ export const AuthProvider = ({ children }: Props) => {
     }
   };
 
+  /* ================= LOGOUT ================= */
+
   const logout = () => {
     setUser(null);
     setToken(null);
-
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-
+    localStorage.clear();
     navigate("/login");
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, register, logout }}
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        register,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
 
+/* ================= HOOK ================= */
+
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error("useAuth must be used inside AuthProvider");
   }
   return ctx;
 };
