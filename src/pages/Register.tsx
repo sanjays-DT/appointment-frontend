@@ -1,106 +1,89 @@
-'use client'
+'use client';
 
-import { useState } from "react"
-import { useAuth } from "../context/AuthContext.tsx"
-import { useNavigate, Link } from "react-router-dom"
-import { toast } from "react-toastify"
-import "react-toastify/dist/ReactToastify.css"
-import { User, Mail, Lock, Eye, EyeOff } from "lucide-react"
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext.tsx";
+import { useNavigate, Link } from "react-router-dom";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+
+interface FormState {
+  name: string;
+  email: string;
+  password: string;
+}
+
+interface ErrorState {
+  name: string;
+  email: string;
+  password: string;
+  avatar: string;
+}
 
 export default function Register() {
-  const { register, loading } = useAuth()
-  const navigate = useNavigate()
+  const { register, loading } = useAuth();
+  const navigate = useNavigate();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     name: "",
     email: "",
     password: "",
-  })
+  });
 
-  const [showPassword, setShowPassword] = useState(false)
-  const [avatar, setAvatar] = useState<File | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = useState<ErrorState>({
     name: "",
     email: "",
     password: "",
     avatar: "",
-  })
+  });
 
-  /* ---------------- VALIDATION ---------------- */
-  const validate = () => {
-    const newErrors = { name: "", email: "", password: "", avatar: "" }
-    let isValid = true
-
-    if (form.name.trim().length < 3) {
-      newErrors.name = "Name must be at least 3 characters"
-      isValid = false
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(form.email)) {
-      newErrors.email = "Enter a valid email address"
-      isValid = false
-    }
-
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&]).{8,}$/
-    if (!passwordRegex.test(form.password)) {
-      newErrors.password =
-        "Password must be 8+ characters with letters, numbers & symbols"
-      isValid = false
-    }
-
-    if (avatar) {
-      if (!avatar.type.startsWith("image/")) {
-        newErrors.avatar = "Only image files allowed"
-        isValid = false
-      } else if (avatar.size > 2 * 1024 * 1024) {
-        newErrors.avatar = "Image must be under 2MB"
-        isValid = false
-      }
-    }
-
-    setErrors(newErrors)
-    return isValid
-  }
+  const [showPassword, setShowPassword] = useState(false);
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   /* ---------------- HANDLERS ---------------- */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-    setErrors({ ...errors, [e.target.name]: "" })
-  }
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: "" }); // clear error on change
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null
-    setAvatar(file)
-    setAvatarPreview(file ? URL.createObjectURL(file) : null)
-    setErrors({ ...errors, avatar: "" })
-  }
+    const file = e.target.files?.[0] || null;
+    setAvatar(file);
+    setAvatarPreview(file ? URL.createObjectURL(file) : null);
+    setErrors({ ...errors, avatar: "" });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
+    e.preventDefault();
 
-    const formData = new FormData()
-    formData.append("name", form.name)
-    formData.append("email", form.email)
-    formData.append("password", form.password)
-    if (avatar) formData.append("avatar", avatar)
+    // Reset errors before submit
+    setErrors({ name: "", email: "", password: "", avatar: "" });
 
-    const res = await register(formData)
+    const formData = new FormData();
+    formData.append("name", form.name);
+    formData.append("email", form.email);
+    formData.append("password", form.password);
+    if (avatar) formData.append("avatar", avatar);
+
+    const res = await register(formData);
+
     if (!res.ok) {
-      toast.error(res.error || "Registration failed")
-    } else {
-      toast.success("Account created successfully")
-      navigate("/login")
+      // If backend returned field-specific errors
+      setErrors({
+        name: res.errors?.name || "",
+        email: res.errors?.email || "",
+        password: res.errors?.password || "",
+        avatar: res.errors?.avatar || "",
+      });
+      return;
     }
-  }
 
-  /* ---------------- UI ---------------- */
+    // If successful, navigate to login
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background-light dark:bg-background-dark transition-theme">
-      
+
       {/* LEFT SIDE */}
       <div className="hidden md:flex bg-gradient-to-br from-blue-600 to-indigo-700 text-white items-center justify-center px-12">
         <div className="text-center max-w-md space-y-6">
@@ -142,9 +125,7 @@ export default function Register() {
 
             {/* AVATAR */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Profile Photo
-              </label>
+              <label className="block text-sm font-medium mb-2">Profile Photo</label>
               <div className="flex items-center gap-4">
                 {avatarPreview ? (
                   <img
@@ -162,6 +143,7 @@ export default function Register() {
                   <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
                 </label>
               </div>
+              {errors.avatar && <p className="text-danger text-sm mt-1">{errors.avatar}</p>}
             </div>
 
             {/* NAME */}
@@ -181,6 +163,7 @@ export default function Register() {
                   placeholder="John Doe"
                 />
               </div>
+              {errors.name && <p className="text-danger text-sm mt-1">{errors.name}</p>}
             </div>
 
             {/* EMAIL */}
@@ -200,6 +183,7 @@ export default function Register() {
                   placeholder="you@example.com"
                 />
               </div>
+              {errors.email && <p className="text-danger text-sm mt-1">{errors.email}</p>}
             </div>
 
             {/* PASSWORD */}
@@ -226,6 +210,7 @@ export default function Register() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {errors.password && <p className="text-danger text-sm mt-1">{errors.password}</p>}
             </div>
 
             {/* SUBMIT */}
@@ -247,5 +232,5 @@ export default function Register() {
         </div>
       </div>
     </div>
-  )
+  );
 }

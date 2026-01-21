@@ -1,16 +1,10 @@
 'use client';
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import api from "../api/axios.ts";
 import { useNavigate } from "react-router-dom";
 
-/* ================= TYPES ================= */
+/* ---------------- TYPES ---------------- */
 
 interface User {
   id: string;
@@ -21,7 +15,13 @@ interface User {
 
 interface AuthResponse {
   ok: boolean;
-  error?: string;
+  errors?: {
+    name?: string | undefined;
+    email?: string | undefined;
+    password?: string | undefined;
+    avatar?: string | undefined;
+  };
+  message?: string;
 }
 
 interface AuthContextType {
@@ -34,7 +34,7 @@ interface AuthContextType {
   logout: () => void;
 }
 
-/* ================= CONTEXT ================= */
+/* ---------------- CONTEXT ---------------- */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: Props) => {
   );
   const [loading, setLoading] = useState(false);
 
-  /* ================= PERSIST ================= */
+  /* ---------------- PERSIST ---------------- */
 
   useEffect(() => {
     token
@@ -67,8 +67,7 @@ export const AuthProvider = ({ children }: Props) => {
       : localStorage.removeItem("user");
   }, [user]);
 
-  /* ================= LOGIN ================= */
-
+  /* ---------------- LOGIN ---------------- */
   const login = async (
     email: string,
     password: string
@@ -76,7 +75,6 @@ export const AuthProvider = ({ children }: Props) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
-
       const { token, user } = res.data;
 
       setToken(token);
@@ -87,35 +85,33 @@ export const AuthProvider = ({ children }: Props) => {
     } catch (err: any) {
       return {
         ok: false,
-        error: err.response?.data?.message || err.message,
+        message: err.response?.data?.message || err.message,
       };
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= REGISTER ================= */
-
+  /* ---------------- REGISTER ---------------- */
   const register = async (data: FormData): Promise<AuthResponse> => {
     setLoading(true);
     try {
       await api.post("/auth/register", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      navigate("/login");
       return { ok: true };
     } catch (err: any) {
       return {
         ok: false,
-        error: err.response?.data?.message || err.message,
+        errors: err.response?.data?.errors || undefined,
+        message: err.response?.data?.message || err.message,
       };
     } finally {
       setLoading(false);
     }
   };
 
-  /* ================= LOGOUT ================= */
-
+  /* ---------------- LOGOUT ---------------- */
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -139,12 +135,9 @@ export const AuthProvider = ({ children }: Props) => {
   );
 };
 
-/* ================= HOOK ================= */
-
+/* ---------------- HOOK ---------------- */
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used inside AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 };

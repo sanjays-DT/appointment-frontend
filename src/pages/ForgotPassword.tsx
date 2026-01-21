@@ -1,20 +1,9 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import api from "../api/axios.ts";
 import { toast } from "react-toastify";
 import { Eye, EyeOff } from "lucide-react";
-
-/* ---------------- PASSWORD VALIDATION ---------------- */
-const validatePassword = (password: string) => {
-  if (password.length < 8) return "Password must be at least 8 characters";
-  if (!/[A-Z]/.test(password)) return "Must contain an uppercase letter";
-  if (!/[a-z]/.test(password)) return "Must contain a lowercase letter";
-  if (!/[0-9]/.test(password)) return "Must contain a number";
-  if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password))
-    return "Must contain a special character";
-  return null;
-};
 
 type Status = "NONE" | "PENDING" | "APPROVED";
 
@@ -23,7 +12,6 @@ export default function ForgotPassword() {
   const [emailError, setEmailError] = useState("");
 
   const [status, setStatus] = useState<Status>("NONE");
-  const [isApproved, setIsApproved] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
 
   const [password, setPassword] = useState("");
@@ -37,80 +25,70 @@ export default function ForgotPassword() {
   /* ---------------- REQUEST RESET ---------------- */
   const requestReset = async () => {
     setEmailError("");
-
-    if (!email) {
+    if (!email.trim()) {
       setEmailError("Email is required");
       return;
     }
 
     try {
-      await api.post("/auth/forgot-password", { email });
-      setStatus("PENDING");
-      toast.info("Request submitted. Waiting for admin approval...");
+      const res = await api.post("/auth/forgot-password", { email });
+      setStatus(res.data.status || "PENDING");
+      setRemainingTime(res.data.remainingTime || 0);
+      toast.info(res.data.message || "Request submitted. Waiting for admin approval.");
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Request failed");
+      setEmailError(err.response?.data?.message || "Request failed");
     }
   };
 
-  /* ---------------- POLL STATUS ---------------- */
+  /* ---------------- POLL APPROVAL STATUS ---------------- */
   useEffect(() => {
-    if (!email || isApproved) return;
+    if (!email || status === "APPROVED") return;
 
     const interval = setInterval(async () => {
       try {
         const res = await api.get(`/auth/forgot-password/check?email=${email}`);
+        setStatus(res.data.status);
         setRemainingTime(res.data.remainingTime || 0);
 
         if (res.data.status === "APPROVED") {
-          setStatus("APPROVED");
-          setIsApproved(true);
-          toast.success("Approved! You can reset your password.");
+          toast.success("Your request has been approved. You can now reset your password.");
           clearInterval(interval);
-        } else {
-          setStatus("PENDING");
         }
       } catch {
-        // silent polling error
+        // silently ignore
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [email, isApproved]);
+  }, [email, status]);
 
   /* ---------------- RESET PASSWORD ---------------- */
   const resetPassword = async () => {
     setPasswordError("");
     setConfirmError("");
 
-    let hasError = false;
-
-    if (!password) {
+    if (!password.trim()) {
       setPasswordError("Password is required");
-      hasError = true;
-    } else {
-      const validationError = validatePassword(password);
-      if (validationError) {
-        setPasswordError(validationError);
-        hasError = true;
-      }
+      return;
     }
 
-    if (!confirm) {
+    if (!confirm.trim()) {
       setConfirmError("Confirm password is required");
-      hasError = true;
-    } else if (password && password !== confirm) {
-      setConfirmError("Passwords do not match");
-      hasError = true;
+      return;
     }
 
-    if (hasError) return;
+    if (password !== confirm) {
+      setConfirmError("Passwords do not match");
+      return;
+    }
 
     try {
-      await api.post("/auth/forgot-password/reset", { email, password });
-      toast.success("Password updated successfully");
+      const res = await api.post("/auth/forgot-password/reset", { email, password });
+      toast.success(res.data.message || "Password updated successfully");
       window.location.href = "/login";
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Reset failed");
+      const message = err.response?.data?.message || "Reset failed";
+      setPasswordError(message);
     }
   };
 
@@ -119,53 +97,35 @@ export default function ForgotPassword() {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  /* ---------------- UI ---------------- */
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-6 bg-background-light dark:bg-background-dark transition-theme">
-      <div className="w-full max-w-md md:max-w-lg bg-surface-light dark:bg-surface-dark rounded-3xl shadow-xl p-8 md:p-12 transition-theme">
-        <h1 className="text-3xl font-bold text-center mb-8 text-text-light dark:text-text-dark">
-          Forgot Password
-        </h1>
+    <div className="min-h-screen flex items-center justify-center px-4 py-6 bg-background-light dark:bg-background-dark">
+      <div className="w-full max-w-md bg-surface-light dark:bg-surface-dark rounded-3xl shadow-xl p-8">
+        <h1 className="text-3xl font-bold text-center mb-8">Forgot Password</h1>
 
-        {/* ---------- REQUEST / WAIT UI ---------- */}
-        {!isApproved ? (
+        {status !== "APPROVED" ? (
           <>
+            {/* EMAIL INPUT */}
             <div className="mb-5">
-              <label className="block font-medium mb-2 text-text-light dark:text-text-dark">
-                Email Address
-              </label>
-
+              <label className="block font-medium mb-2">Email Address</label>
               <input
                 type="email"
-                placeholder="you@example.com"
                 value={email}
                 disabled={status === "PENDING"}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-theme
-                  bg-surface-light dark:bg-surface-dark
-                  text-text-light dark:text-text-dark
-                  placeholder-muted-light dark:placeholder-muted-dark
-                  ${
-                    emailError
-                      ? "border-danger focus:ring-red-300"
-                      : "border-border-light dark:border-border-dark focus:ring-primary"
-                  }`}
+                className={`w-full px-4 py-3 rounded-xl border ${
+                  emailError ? "border-danger" : "border-border-light"
+                }`}
               />
-
-              {emailError && (
-                <p className="text-danger text-sm mt-1">{emailError}</p>
-              )}
+              <p className="text-danger text-sm mt-1 min-h-[1.25rem]">{emailError}</p>
             </div>
 
             <button
               onClick={requestReset}
               disabled={status === "PENDING"}
-              className="w-full py-3 rounded-xl bg-primary text-white font-semibold hover:opacity-95 disabled:opacity-60 transition"
+              className="w-full py-3 rounded-xl bg-primary text-white font-semibold"
             >
               {status === "PENDING" ? "Request Sent" : "Request Reset"}
             </button>
@@ -177,75 +137,61 @@ export default function ForgotPassword() {
             )}
           </>
         ) : (
-          /* ---------- RESET PASSWORD UI ---------- */
           <>
+            {/* RESET PASSWORD FORM */}
             <p className="text-success text-center mb-6 font-semibold">
-              ✔ Approved — Set your new password
+              Approved — Set your new password
             </p>
 
-            <div className="mb-4 relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="New password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-theme
-                  bg-surface-light dark:bg-surface-dark
-                  text-text-light dark:text-text-dark
-                  placeholder-muted-light dark:placeholder-muted-dark
-                  ${
-                    passwordError
-                      ? "border-danger focus:ring-red-300"
-                      : "border-border-light dark:border-border-dark focus:ring-primary"
+            {/* PASSWORD INPUT */}
+            <div className="mb-4">
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="New password"
+                  className={`w-full px-4 py-3 rounded-xl border ${
+                    passwordError ? "border-danger" : "border-border-light"
                   }`}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-light dark:text-muted-dark"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-
-              {passwordError && (
-                <p className="text-danger text-sm mt-1">{passwordError}</p>
-              )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              <p className="text-danger text-sm mt-1 min-h-[1.25rem]">{passwordError}</p>
             </div>
 
-            <div className="mb-6 relative">
-              <input
-                type={showConfirm ? "text" : "password"}
-                placeholder="Confirm password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className={`w-full px-4 py-3 rounded-xl border focus:ring-2 focus:outline-none transition-theme
-                  bg-surface-light dark:bg-surface-dark
-                  text-text-light dark:text-text-dark
-                  placeholder-muted-light dark:placeholder-muted-dark
-                  ${
-                    confirmError
-                      ? "border-danger focus:ring-red-300"
-                      : "border-border-light dark:border-border-dark focus:ring-primary"
+            {/* CONFIRM PASSWORD INPUT */}
+            <div className="mb-6">
+              <div className="relative">
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="Confirm password"
+                  className={`w-full px-4 py-3 rounded-xl border ${
+                    confirmError ? "border-danger" : "border-border-light"
                   }`}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-light dark:text-muted-dark"
-              >
-                {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-
-              {confirmError && (
-                <p className="text-danger text-sm mt-1">{confirmError}</p>
-              )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                >
+                  {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              <p className="text-danger text-sm mt-1 min-h-[1.25rem]">{confirmError}</p>
             </div>
 
             <button
               onClick={resetPassword}
-              className="w-full py-3 rounded-xl bg-primary text-white font-semibold hover:opacity-95 transition"
+              className="w-full py-3 rounded-xl bg-primary text-white font-semibold"
             >
               Change Password
             </button>
