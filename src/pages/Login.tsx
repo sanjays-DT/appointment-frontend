@@ -79,17 +79,17 @@ export default function Login() {
           </p>
 
           <div className="flex justify-center gap-8">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center  p-4  hover:scale-105 transition-transform">
               <Calendar className="w-8 h-8 text-white mb-1" />
               <span className="text-sm text-blue-200">Schedule</span>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center  p-4  hover:scale-105 transition-transform">
               <Bell className="w-8 h-8 text-white mb-1" />
               <span className="text-sm text-blue-200">Notifications</span>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center  p-4  hover:scale-105 transition-transform">
               <Shield className="w-8 h-8 text-white mb-1" />
               <span className="text-sm text-blue-200">Secure</span>
             </div>

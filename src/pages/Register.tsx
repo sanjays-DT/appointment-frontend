@@ -1,113 +1,160 @@
-'use client';
+'use client'
 
-import React, { useState } from "react";
-import { useAuth } from "../context/AuthContext.tsx";
-import { useNavigate, Link } from "react-router-dom";
-import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
-
-interface FormState {
-  name: string;
-  email: string;
-  password: string;
-}
-
-interface ErrorState {
-  name: string;
-  email: string;
-  password: string;
-  avatar: string;
-}
+import { useState } from "react"
+import { useAuth } from "../context/AuthContext.tsx"
+import { useNavigate, Link } from "react-router-dom"
+import { toast } from "react-toastify"
+import "react-toastify/dist/ReactToastify.css"
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react"
+import validator from "validator"
 
 export default function Register() {
-  const { register, loading } = useAuth();
-  const navigate = useNavigate();
+  const { register, loading } = useAuth()
+  const navigate = useNavigate()
 
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-  });
+  })
 
-  const [errors, setErrors] = useState<ErrorState>({
+  const [showPassword, setShowPassword] = useState(false)
+  const [avatar, setAvatar] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  const [errors, setErrors] = useState({
     name: "",
     email: "",
     password: "",
     avatar: "",
-  });
+  })
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [avatar, setAvatar] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  /* ---------------- VALIDATION ---------------- */
+  const validate = () => {
+    const newErrors = { name: "", email: "", password: "", avatar: "" }
+    let isValid = true
+
+    // Name
+    if (!form.name.trim()) {
+      newErrors.name = "Enter name"
+      isValid = false
+    } else if (!validator.isLength(form.name.trim(), { min: 3 })) {
+      newErrors.name = "Name must be at least 3 characters"
+      isValid = false
+    }
+
+    // Email
+    if (!form.email.trim()) {
+      newErrors.email = "Enter email"
+      isValid = false
+    } else if (!validator.isEmail(form.email)) {
+      newErrors.email = "Enter a valid email address"
+      isValid = false
+    }
+
+    // Password
+    if (!form.password) {
+      newErrors.password = "Enter password"
+      isValid = false
+    } else if (
+      !validator.isStrongPassword(form.password, {
+        minLength: 8,
+        minLowercase: 1,
+        minUppercase: 1,
+        minNumbers: 1,
+        minSymbols: 1,
+      })
+    ) {
+      newErrors.password =
+        "Password must be 8+ characters and include uppercase, lowercase, number, and symbol"
+      isValid = false
+    }
+
+    // Avatar (optional)
+    if (avatar) {
+      if (!avatar.type.startsWith("image/")) {
+        newErrors.avatar = "Only image files are allowed"
+        isValid = false
+      } else if (avatar.size > 2 * 1024 * 1024) {
+        newErrors.avatar = "Image must be under 2MB"
+        isValid = false
+      }
+    }
+
+    setErrors(newErrors)
+    return isValid
+  }
 
   /* ---------------- HANDLERS ---------------- */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" }); // clear error on change
-  };
+    setForm({ ...form, [e.target.name]: e.target.value })
+    setErrors({ ...errors, [e.target.name]: "" })
+  }
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setAvatar(file);
-    setAvatarPreview(file ? URL.createObjectURL(file) : null);
-    setErrors({ ...errors, avatar: "" });
-  };
+    const file = e.target.files?.[0] || null
+    setAvatar(file)
+    setAvatarPreview(file ? URL.createObjectURL(file) : null)
+    setErrors({ ...errors, avatar: "" })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
+    if (!validate()) return
 
-    // Reset errors before submit
-    setErrors({ name: "", email: "", password: "", avatar: "" });
+    const formData = new FormData()
+    formData.append("name", form.name.trim())
+    formData.append("email", form.email)
+    formData.append("password", form.password)
+    if (avatar) formData.append("avatar", avatar)
 
-    const formData = new FormData();
-    formData.append("name", form.name);
-    formData.append("email", form.email);
-    formData.append("password", form.password);
-    if (avatar) formData.append("avatar", avatar);
-
-    const res = await register(formData);
+    const res = await register(formData)
 
     if (!res.ok) {
-      // If backend returned field-specific errors
-      setErrors({
-        name: res.errors?.name || "",
-        email: res.errors?.email || "",
-        password: res.errors?.password || "",
-        avatar: res.errors?.avatar || "",
-      });
-      return;
+      toast.error(res.error || "Registration failed")
+    } else {
+      toast.success("Account created successfully")
+      navigate("/login")
     }
+  }
 
-    // If successful, navigate to login
-    navigate("/login");
-  };
-
+  /* ---------------- UI ---------------- */
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background-light dark:bg-background-dark transition-theme">
 
       {/* LEFT SIDE */}
-      <div className="hidden md:flex bg-gradient-to-br from-blue-600 to-indigo-700 text-white items-center justify-center px-12">
-        <div className="text-center max-w-md space-y-6">
-          <h1 className="text-4xl font-bold">Welcome</h1>
+      <div className="hidden md:flex bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white items-center justify-center px-12">
+        <div className="text-center max-w-sm space-y-8">
+          {/* Heading */}
+          <h1 className="text-5xl font-extrabold tracking-tight">Welcome</h1>
           <p className="text-blue-100 text-lg">
-            Create your account and get started
+            Create your account and start your journey with us
           </p>
-
-          <div className="flex justify-center gap-8">
-            <div className="flex flex-col items-center">
-              <User size={28} />
-              <span className="text-sm text-blue-200 mt-1">Profile</span>
+          {/* Icon Cards */}
+          <div className="flex justify-center gap-6">
+            {/* Profile Card */}
+            <div className="flex flex-col items-center  p-4  hover:scale-105 transition-transform">
+              <User size={32} className="text-white mb-2" />
+              <span className="text-sm text-white/80 font-medium">Profile</span>
             </div>
-            <div className="flex flex-col items-center">
-              <Lock size={28} />
-              <span className="text-sm text-blue-200 mt-1">Security</span>
+            {/* Security Card */}
+            <div className="flex flex-col items-center  backdrop-blur-md p-4 hover:scale-105 transition-transform">
+              <Lock size={32} className="text-white mb-2" />
+              <span className="text-sm text-white/80 font-medium">Security</span>
             </div>
-            <div className="flex flex-col items-center">
-              <Mail size={28} />
-              <span className="text-sm text-blue-200 mt-1">Access</span>
+            {/* Access Card */}
+            <div className="flex flex-col items-center  backdrop-blur-md p-4   hover:scale-105 transition-transform">
+              <Mail size={32} className="text-white mb-2" />
+              <span className="text-sm text-white/80 font-medium">Access</span>
             </div>
+          </div>
+          {/* Decorative Elements */}
+          <div className="relative">
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-40 h-1 bg-white/30 rounded-full blur-xl"></div>
           </div>
         </div>
       </div>
+
 
       {/* RIGHT PANEL */}
       <div className="flex items-center justify-center px-6 py-12">
@@ -125,7 +172,9 @@ export default function Register() {
 
             {/* AVATAR */}
             <div>
-              <label className="block text-sm font-medium mb-2">Profile Photo</label>
+              <label className="block text-sm font-medium mb-2">
+                Profile Photo
+              </label>
               <div className="flex items-center gap-4">
                 {avatarPreview ? (
                   <img
@@ -143,7 +192,7 @@ export default function Register() {
                   <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
                 </label>
               </div>
-              {errors.avatar && <p className="text-danger text-sm mt-1">{errors.avatar}</p>}
+              {errors.avatar && <p className="text-red-500 text-sm mt-1">{errors.avatar}</p>}
             </div>
 
             {/* NAME */}
@@ -156,14 +205,13 @@ export default function Register() {
                   name="name"
                   value={form.name}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border
-                    bg-transparent
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border bg-transparent
                     border-border-light dark:border-border-dark
                     focus:ring-2 focus:ring-primary outline-none"
                   placeholder="John Doe"
                 />
               </div>
-              {errors.name && <p className="text-danger text-sm mt-1">{errors.name}</p>}
+              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
 
             {/* EMAIL */}
@@ -176,14 +224,13 @@ export default function Register() {
                   name="email"
                   value={form.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border
-                    bg-transparent
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border bg-transparent
                     border-border-light dark:border-border-dark
                     focus:ring-2 focus:ring-primary outline-none"
                   placeholder="you@example.com"
                 />
               </div>
-              {errors.email && <p className="text-danger text-sm mt-1">{errors.email}</p>}
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
             {/* PASSWORD */}
@@ -196,8 +243,7 @@ export default function Register() {
                   name="password"
                   value={form.password}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-10 py-3 rounded-xl border
-                    bg-transparent
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border bg-transparent
                     border-border-light dark:border-border-dark
                     focus:ring-2 focus:ring-primary outline-none"
                   placeholder="Create strong password"
@@ -210,14 +256,17 @@ export default function Register() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {errors.password && <p className="text-danger text-sm mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
             </div>
 
             {/* SUBMIT */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold hover:opacity-95 transition"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600
+                text-white font-semibold hover:opacity-95 transition"
             >
               {loading ? "Creating..." : "Create Account"}
             </button>
@@ -232,5 +281,5 @@ export default function Register() {
         </div>
       </div>
     </div>
-  );
+  )
 }
