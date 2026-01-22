@@ -38,10 +38,7 @@ export default function Login() {
     if (!email) {
       setEmailError("Email is required");
       hasError = true;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError("Please enter a valid email address");
-      hasError = true;
-    }
+    } 
 
     if (!password) {
       setPasswordError("Password is required");
