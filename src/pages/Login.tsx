@@ -1,25 +1,37 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { Calendar, Bell, Shield } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Mail, Lock, Eye, EyeOff, Calendar, Bell, Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext.tsx";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function Login() {
+  const navigate = useNavigate();
   const auth = useAuth();
-  const { login, loading } = auth;
+  const { login, loading, token } = auth as any;
   const forcePasswordChange = (auth as any).forcePasswordChange ?? false;
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  // field-level errors
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+
+  /**
+   * AUTH GUARD
+   * If token already exists, do not allow Login page
+   */
+  useEffect(() => {
+    const existingToken =
+      token ||
+      localStorage.getItem("accessToken") ||
+      sessionStorage.getItem("accessToken");
+
+    if (existingToken) {
+      navigate("/categories", { replace: true });
+    }
+  }, [token, navigate]);
 
   useEffect(() => {
     if (forcePasswordChange) {
@@ -38,7 +50,7 @@ export default function Login() {
     if (!email) {
       setEmailError("Email is required");
       hasError = true;
-    } 
+    }
 
     if (!password) {
       setPasswordError("Password is required");
@@ -55,9 +67,13 @@ export default function Login() {
     }
 
     toast.success("Login successful");
+
+    // Redirect after successful login
+    navigate("/categories", { replace: true });
   };
 
   if (forcePasswordChange) return null;
+
 
   return (
     <div

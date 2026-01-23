@@ -43,7 +43,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     // Login → fetch preference
     const loadTheme = async () => {
       try {
-        const { data } = await api.get("/preferences");
+        const { data } = await api.get("/users/preferences");
         const serverTheme: Theme =
           data?.theme === "dark" ? "dark" : "light";
         setTheme(serverTheme);
@@ -63,7 +63,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     if (!token) return;
 
     try {
-      await api.put("/preferences", { theme: nextTheme });
+      await api.put("/users/preferences", { theme: nextTheme });
     } catch {
       setTheme(theme);
     }
