@@ -1,20 +1,28 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App.tsx';
-import reportWebVitals from './reportWebVitals';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 
-const rootElement = document.getElementById('root');
+import App from "./App.tsx";
+import { AuthProvider } from "./context/AuthContext.tsx";
+import { ThemeProvider } from "./context/ThemeContext.tsx";
+import { NotificationProvider } from "./context/NotificationContext.tsx";
 
-if (!rootElement) throw new Error("Failed to find root element");
+import "./index.css";
 
-const root = ReactDOM.createRoot(rootElement);
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLElement
+);
 
 root.render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <AuthProvider>
+        <ThemeProvider>
+          <NotificationProvider>
+            <App />
+          </NotificationProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );
-
-
-reportWebVitals();

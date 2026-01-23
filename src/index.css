@@ -3,19 +3,28 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-@layer base {
-  html {
-    font-family: theme('fontFamily.sans');
-  }
+/* ================= VARIABLES ================= */
+:root {
+  --background-light: #f9fafb;
+  --background-dark: #111827;
+  --text-light: #1f2937;
+  --text-dark: #f9fafb;
 
-  body {
-    background-color: var(--background-light);
-    color: var(--text-light);
-    transition: background-color .2s ease, color .2s ease;
-  }
+  --surface-light: #ffffff;
+  --surface-dark: #1f2937;
+  --border-light: #e5e7eb;
+  --border-dark: #374151;
+  --muted-light: #6b7280;
+  --muted-dark: #9ca3af;
+}
 
-  .dark body {
-    background-color: var(--background-dark);
-    color: var(--text-dark);
-  }
+body {
+  background-color: var(--background-light);
+  color: var(--text-light);
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.dark body {
+  background-color: var(--background-dark);
+  color: var(--text-dark);
 }
