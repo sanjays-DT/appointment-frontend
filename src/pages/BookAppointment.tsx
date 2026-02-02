@@ -8,7 +8,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Calendar } from "lucide-react";
 
 interface Slot {
-  time: string;
+  time: string; // "09:00 - 09:30"
   isBooked: boolean;
 }
 
@@ -19,14 +19,37 @@ interface Provider {
 
 export default function BookAppointment() {
   const { providerId } = useParams<{ providerId: string }>();
-  const today = new Date().toISOString().split("T")[0];
+
+  // LOCAL date (same format as input[type=date])
+  const today = new Date().toLocaleDateString("en-CA"); // yyyy-mm-dd
 
   const [provider, setProvider] = useState<Provider | null>(null);
   const [date, setDate] = useState<string>(today);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
 
-  // Fetch provider info
+  /* =================================================
+     Helper: disable past slots of TODAY (range-safe)
+     ================================================= */
+  const isPastSlot = (slotTime: string) => {
+    // Only apply to today
+    if (date !== today) return false;
+
+    const now = new Date();
+
+    // slotTime example: "09:00 - 09:30"
+    const startTime = slotTime.split(" - ")[0]; // "09:00"
+    const [hours, minutes] = startTime.split(":").map(Number);
+
+    const slotDateTime = new Date();
+    slotDateTime.setHours(hours, minutes, 0, 0);
+
+    return slotDateTime <= now;
+  };
+
+  /* =========================
+     Fetch provider info
+     ========================= */
   useEffect(() => {
     const fetchProvider = async () => {
       try {
@@ -37,28 +60,37 @@ export default function BookAppointment() {
         toast.error("Failed to fetch provider details");
       }
     };
+
     fetchProvider();
   }, [providerId]);
 
-  // Fetch slots for selected date
+  /* =========================
+     Fetch slots by date
+     ========================= */
   useEffect(() => {
     if (!date) return;
 
     const fetchSlots = async () => {
       try {
-        const res = await api.get(`/appointment/${providerId}/slots?date=${date}`);
+        const res = await api.get(
+          `/appointment/${providerId}/slots?date=${date}`
+        );
+
         setSlots(Array.isArray(res.data.slots) ? res.data.slots : []);
-        setSelectedSlot(""); // reset selection on date change
+        setSelectedSlot(""); // reset on date change
       } catch (err) {
         console.error(err);
         toast.error("Failed to fetch slots");
         setSlots([]);
       }
     };
+
     fetchSlots();
   }, [providerId, date]);
 
-  // Book the selected slot
+  /* =========================
+     Book slot
+     ========================= */
   const bookSlot = async () => {
     if (!selectedSlot) {
       toast.error("Please select a slot");
@@ -68,14 +100,15 @@ export default function BookAppointment() {
     try {
       await api.post("/appointment/book-slot", {
         providerId,
-        day: new Date(date).toLocaleDateString("en-US", { weekday: "long" }),
+        day: new Date(date).toLocaleDateString("en-US", {
+          weekday: "long",
+        }),
         date,
         slotTime: selectedSlot,
       });
 
       toast.success("Slot booked successfully 🎉");
 
-      // Mark slot as booked in UI
       setSlots((prev) =>
         prev.map((s) =>
           s.time === selectedSlot ? { ...s, isBooked: true } : s
@@ -93,6 +126,9 @@ export default function BookAppointment() {
     }
   };
 
+  /* =========================
+     Loading
+     ========================= */
   if (!provider) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-background-light dark:bg-background-dark transition-theme">
@@ -159,25 +195,36 @@ export default function BookAppointment() {
             <label className="block text-sm font-medium text-text-light dark:text-text-dark mb-1">
               Available Slots
             </label>
+
             {slots.length > 0 ? (
               <div className="grid grid-cols-3 gap-2">
-                {slots.map((slot) => (
-                  <button
-                    key={slot.time}
-                    disabled={slot.isBooked}
-                    onClick={() => setSelectedSlot(slot.time)}
-                    className={`py-2 rounded-lg text-sm font-medium transition
-                      ${slot.isBooked
-                        ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through"
-                        : selectedSlot === slot.time
-                          ? "bg-primary text-white"
-                          : "bg-green-50 dark:bg-emerald-900/20"
-                      }
-`}
-                  >
-                    {slot.time}
-                  </button>
-                ))}
+                {slots.map((slot) => {
+                  const disabled =
+                    slot.isBooked || isPastSlot(slot.time);
+
+                  return (
+                    <button
+                      key={slot.time}
+                      disabled={disabled}
+                      onClick={() => {
+                        if (!disabled) {
+                          setSelectedSlot(slot.time);
+                        }
+                      }}
+                      className={`py-2 rounded-lg text-sm font-medium transition
+                        ${
+                          disabled
+                            ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through"
+                            : selectedSlot === slot.time
+                            ? "bg-primary text-white"
+                            : "bg-green-50 dark:bg-emerald-900/20"
+                        }
+                      `}
+                    >
+                      {slot.time}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-light dark:text-muted-dark">
