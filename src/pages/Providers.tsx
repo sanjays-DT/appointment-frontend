@@ -34,9 +34,9 @@ export default function Providers() {
   }, [categoryId]);
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark transition-theme">
+    <div className="min-h-[552px] bg-background-light dark:bg-background-dark transition-theme">
       {/* ===== Hero Section ===== */}
-      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 px-6 py-14">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 px-4 py-12">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-extrabold text-white">
             Available Providers
