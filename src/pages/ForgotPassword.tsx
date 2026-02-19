@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import { Eye, EyeOff } from "lucide-react";
 
 type Status = "NONE" | "PENDING" | "APPROVED";
+const ROLE = "user";
+const THIRTY_MIN = 30 * 60 * 1000;
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -25,28 +27,44 @@ export default function ForgotPassword() {
   /* ---------------- REQUEST RESET ---------------- */
   const requestReset = async () => {
     setEmailError("");
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
       setEmailError("Email is required");
       return;
     }
 
     try {
-      const res = await api.post("/auth/forgot-password", { email });
+      const res = await api.post("/auth/forgot-password", { email: normalizedEmail, role: ROLE });
+      setEmail(normalizedEmail);
       setStatus(res.data.status || "PENDING");
-      setRemainingTime(res.data.remainingTime || 0);
+      const requestedAt = res.data.requestedAt ? new Date(res.data.requestedAt).getTime() : Date.now();
+      setRemainingTime(Math.max(0, THIRTY_MIN - (Date.now() - requestedAt)));
       toast.info(res.data.message || "Request submitted. Waiting for admin approval.");
     } catch (err: any) {
-      setEmailError(err.response?.data?.message || "Request failed");
+      const message = err.response?.data?.message || "Request failed";
+      const pendingStatus = err.response?.data?.status;
+
+      if (pendingStatus === "PENDING") {
+        setEmail(normalizedEmail);
+        setStatus("PENDING");
+        toast.info(message);
+        return;
+      }
+
+      setEmailError(message);
     }
   };
 
   /* ---------------- POLL APPROVAL STATUS ---------------- */
   useEffect(() => {
-    if (!email || status === "APPROVED") return;
+    if (!email || status !== "PENDING") return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await api.get(`/auth/forgot-password/check?email=${email}`);
+        const res = await api.get("/auth/forgot-password/check", {
+          params: { email: email.trim().toLowerCase(), role: ROLE },
+        });
         setStatus(res.data.status);
         setRemainingTime(res.data.remainingTime || 0);
 
@@ -57,7 +75,7 @@ export default function ForgotPassword() {
       } catch {
         // silently ignore
       }
-    }, 3000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [email, status]);
@@ -83,7 +101,11 @@ export default function ForgotPassword() {
     }
 
     try {
-      const res = await api.post("/auth/forgot-password/reset", { email, password });
+      const res = await api.post("/auth/forgot-password/reset", {
+        email: email.trim().toLowerCase(),
+        password,
+        role: ROLE,
+      });
       toast.success(res.data.message || "Password updated successfully");
       window.location.href = "/login";
     } catch (err: any) {

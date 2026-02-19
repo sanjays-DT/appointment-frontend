@@ -79,6 +79,13 @@ export const AuthProvider = ({ children }: Props) => {
 
       const { token, user } = res.data;
 
+      if (user.role !== "user") {
+      return {
+        ok: false,
+        error: "Access denied. Only users can login here.",
+      };
+    }
+
       setToken(token);
       setUser(user);
 
