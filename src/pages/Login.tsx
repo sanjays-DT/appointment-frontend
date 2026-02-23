@@ -78,7 +78,7 @@ export default function Login() {
   return (
     <div
       className="
-        min-h-screen grid grid-cols-1 md:grid-cols-2
+        h-[552px] grid grid-cols-1 md:grid-cols-2
         bg-background-light dark:bg-background-dark
         transition-theme
       "

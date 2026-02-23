@@ -36,94 +36,101 @@ export default function ProviderDetails() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark transition-theme">
-      {/* ===== Header ===== */}
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 py-14 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex justify-center">
-            {provider.avatar ? (
-              <img
-                src={`${process.env.REACT_APP_API_URL}/providers/${provider._id}/avatar`}
-                alt={provider.name}
-                className="w-28 h-28 rounded-full object-cover ring-4 ring-white shadow-lg transition-theme"
-              />
-            ) : (
-              <div className="w-28 h-28 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 ring-4 ring-white transition-theme">
-                No Image
-              </div>
-            )}
-          </div>
+return (
+  <div className="h-[552px] flex justify-center items-center bg-gray-100 dark:bg-neutral-950 px-4">
 
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mt-4">
+    <div className="h-[500px] w-full max-w-5xl h-full bg-white dark:bg-neutral-900 
+                    rounded-3xl shadow-xl overflow-hidden flex">
+
+      {/* ===== LEFT SIDE - IMAGE ===== */}
+      <div className="w-1/2 h-full">
+
+        {provider.avatar ? (
+          <img
+            src={`${process.env.REACT_APP_API_URL}/providers/${provider._id}/avatar`}
+            alt={provider.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center">
+            No Image
+          </div>
+        )}
+
+      </div>
+
+      {/* ===== RIGHT SIDE - DETAILS ===== */}
+      <div className="w-1/2 h-full p-8 flex flex-col justify-between">
+
+        {/* Top Section */}
+        <div>
+
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">
             {provider.name}
           </h1>
 
-          <p className="text-blue-100 mt-2 text-lg">
+          <p className="text-blue-600 dark:text-blue-400 mt-2">
             {provider.speciality}
           </p>
-        </div>
-      </div>
 
-      {/* ===== Content Card ===== */}
-      <div className="max-w-4xl mx-auto px-6 -mt-12">
-        <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-lg p-6 md:p-8 transition-theme">
-          {/* Bio */}
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-text-light dark:text-text-dark">
-              About
+          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+            📍 {provider.address}
+          </p>
+
+          <div className="flex items-center gap-2 mt-4 text-sm">
+            <span className="text-yellow-500">★★★★★</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              4.9 (120 reviews)
+            </span>
+          </div>
+
+          <div className="mt-6">
+            <h2 className="font-semibold text-gray-900 dark:text-white">
+              About Service
             </h2>
 
             {provider.bio ? (
-              <p className="text-muted-light dark:text-muted-dark mt-2 leading-relaxed">
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4">
                 {provider.bio}
               </p>
             ) : (
-              <p className="text-gray-400 dark:text-gray-500 mt-2">
+              <p className="mt-2 text-sm text-gray-400">
                 No bio available.
               </p>
             )}
           </div>
 
-          {/* Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8 text-center">
-            <div>
-              <p className="text-muted-light dark:text-muted-dark text-sm">Location</p>
-              <p className="font-medium text-text-light dark:text-text-dark mt-1">
-                📍 {provider.address}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-muted-light dark:text-muted-dark text-sm">Price</p>
-              <p className="font-semibold text-green-700 dark:text-green-500 mt-1">
-                ₹{provider.hourlyPrice}/hr
-              </p>
-            </div>
-          </div>
-
-          {/* Rating */}
-          <div className="flex justify-center mt-6 text-yellow-500 text-lg">
-            ⭐⭐⭐⭐⭐
-            <span className="text-muted-light dark:text-muted-dark text-sm ml-2">(5.0 rating)</span>
-          </div>
-
-          {/* CTA */}
-          <div className="flex justify-center mt-8">
-            <Link
-              to={`/book/${provider._id}`}
-              className="
-                bg-blue-600 hover:bg-blue-700
-                text-white font-semibold
-                px-8 py-3 rounded-xl
-                shadow-md transition
-              "
-            >
-              Book Appointment
-            </Link>
-          </div>
         </div>
+
+        {/* Bottom Section */}
+        <div>
+
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                ₹{provider.hourlyPrice}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                per hour
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to={`/book/${provider._id}`}
+            className="block w-full text-center bg-amber-600 hover:bg-amber-700 
+                       text-white font-semibold py-3 rounded-2xl transition"
+          >
+            Book Now
+          </Link>
+
+        </div>
+
       </div>
+
     </div>
-  );
+
+  </div>
+);
+
 }

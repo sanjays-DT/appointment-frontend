@@ -75,9 +75,9 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background-light dark:bg-background-dark transition-theme">
+    <div className="h-[552px] grid grid-cols-1 md:grid-cols-2 bg-background-light dark:bg-background-dark transition-theme">
       {/* LEFT PANEL */}
-      <div className="hidden md:flex flex-col justify-center items-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white px-12 py-20">
+      <div className=" hidden md:flex flex-col justify-center items-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white px-12 py-20">
         <div className="text-center space-y-6">
           <UserIcon className="w-16 h-16 mx-auto text-white/90" />
           <h1 className="text-4xl font-bold">Welcome, {user?.name.split(" ")[0]}</h1>
@@ -93,7 +93,7 @@ export default function Profile() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex items-center justify-center px-6 py-12">
+      <div className=" h-[552px] flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md bg-surface-light dark:bg-surface-dark rounded-2xl shadow-lg p-8 transition-theme">
           <h2 className="text-3xl font-bold text-text-light dark:text-text-dark text-center mb-6">
             Edit Profile
