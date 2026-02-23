@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import api from "../api/axios.ts"
 import { toast } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
@@ -31,9 +31,12 @@ interface RescheduleSlot {
   status?: string
 }
 
+type FilterType = "all" | "upcoming" | "past" | "cancelled" | "missed"
+
 const MyAppointments: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<FilterType>("all")
   const [rescheduleId, setRescheduleId] = useState<string | null>(null)
   const [rescheduleDate, setRescheduleDate] = useState("")
   const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState("")
@@ -58,6 +61,26 @@ const MyAppointments: React.FC = () => {
 
     return slotDateTime <= new Date()
   }
+
+  const filteredAppointments = useMemo(() => {
+    const now = new Date()
+    return appointments.filter((appt) => {
+      const end = new Date(appt.end)
+
+      switch (filter) {
+        case "upcoming":
+          return end >= now && appt.status !== "cancelled"
+        case "past":
+          return end < now && appt.status !== "cancelled"
+        case "cancelled":
+          return appt.status === "cancelled"
+        case "missed":
+          return appt.status === "missed"
+        default:
+          return true
+      }
+    })
+  }, [appointments, filter])
 
   const fetchRescheduleSlots = async (providerId: string, date: string) => {
     try {
@@ -200,7 +223,23 @@ const MyAppointments: React.FC = () => {
           My Appointments
         </h1>
 
-        {appointments.length === 0 ? (
+        <div className="flex flex-wrap justify-center gap-3 mb-8">
+          {["all", "upcoming", "past", "missed", "cancelled"].map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilter(type as FilterType)}
+              className={`px-4 py-2 rounded-full text-xs font-medium transition ${
+                filter === type
+                  ? "bg-primary text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-text-light dark:text-text-dark"
+              }`}
+            >
+              {type.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {filteredAppointments.length === 0 ? (
           <div
             className="
               bg-surface-light dark:bg-surface-dark
@@ -216,7 +255,7 @@ const MyAppointments: React.FC = () => {
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {appointments.map((appt) => {
+            {filteredAppointments.map((appt) => {
               const startDate = new Date(appt.start)
               const endDate = new Date(appt.end)
 
