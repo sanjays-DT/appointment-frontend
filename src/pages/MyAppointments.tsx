@@ -13,28 +13,76 @@ import { baseURL } from "../api/axios.ts"
 
 interface Appointment {
   _id: string
-  providerId: {
+  providerId:
+  | {
     _id: string
     name: string
     speciality?: string
   }
+  | string
   start: string
   end: string
   status: string
 }
 
+interface RescheduleSlot {
+  time: string
+  isBooked: boolean
+  status?: string
+}
+
 const MyAppointments: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedSlot, setSelectedSlot] = useState<{ [key: string]: string }>({})
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState("")
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState("")
+  const [rescheduleSlots, setRescheduleSlots] = useState<RescheduleSlot[]>([])
 
   const isActionAllowed = (status: string) =>
     status === "pending" || status === "missed"
 
-  const getMinDateTime = () => {
-    const now = new Date()
-    now.setMinutes(now.getMinutes() + 30)
-    return now.toISOString().slice(0, 16)
+  const getMinDate = () => new Date().toLocaleDateString("en-CA")
+
+  const isPastRescheduleSlot = (slotTime: string, date: string) => {
+    if (!date) return false
+    const today = new Date().toLocaleDateString("en-CA")
+    if (date !== today) return false
+
+    const startTime = slotTime.split(" - ")[0]
+    const [hours, minutes] = startTime.split(":").map(Number)
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return false
+
+    const slotDateTime = new Date()
+    slotDateTime.setHours(hours, minutes, 0, 0)
+
+    return slotDateTime <= new Date()
+  }
+
+  const fetchRescheduleSlots = async (providerId: string, date: string) => {
+    try {
+      const formattedDate = new Date(date).toISOString().split("T")[0]
+
+      const res = await api.get(`/providers/${providerId}/availability`, {
+        params: { date: formattedDate },
+      })
+
+      if (!res.data || !Array.isArray(res.data.slots)) {
+        setRescheduleSlots([])
+        return
+      }
+
+      const normalizedSlots = res.data.slots.map((slot: any) => ({
+        time: slot.time,
+        isBooked: slot.isBooked || (slot.isAvailable === false)
+      }));
+
+
+      setRescheduleSlots(normalizedSlots)
+    } catch (err: any) {
+      console.error("Reschedule fetch error:", err?.response?.data || err)
+      setRescheduleSlots([])
+    }
   }
 
   useEffect(() => {
@@ -51,6 +99,78 @@ const MyAppointments: React.FC = () => {
     fetchAppointments()
   }, [])
 
+  useEffect(() => {
+    if (!rescheduleId || !rescheduleDate) return
+    const appt = appointments.find((a) => a._id === rescheduleId)
+    const providerIdValue =typeof appt?.providerId === "object"? appt.providerId._id : undefined
+    if (!providerIdValue) return
+    fetchRescheduleSlots(providerIdValue, rescheduleDate)
+  }, [appointments, rescheduleDate, rescheduleId])
+
+  const handleRescheduleSave = async (appt: Appointment) => {
+    if (!rescheduleDate || !selectedRescheduleSlot) {
+      toast.error("Pick a date and slot")
+      return
+    }
+
+    const [startStr, endStr] = selectedRescheduleSlot.split(" - ")
+    const start = new Date(`${rescheduleDate}T${startStr}:00`)
+    const end = new Date(`${rescheduleDate}T${endStr}:00`)
+
+    if (start < new Date()) {
+      toast.error("Cannot reschedule to past slot")
+      return
+    }
+
+    if (!window.confirm("Reschedule to selected slot?")) return
+
+    try {
+      const payload: any = {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        date: rescheduleDate,
+        slotTime: selectedRescheduleSlot,
+      }
+
+      const providerIdValue =
+        typeof appt.providerId === "string"
+          ? appt.providerId
+          : appt.providerId?._id
+      if (providerIdValue && /^[a-f\d]{24}$/i.test(providerIdValue)) {
+        payload.providerId = providerIdValue
+      }
+
+      await api.put(`/appointment/${appt._id}/reschedule`, payload)
+
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a._id === appt._id
+            ? { ...a, start: start.toISOString(), end: end.toISOString() }
+            : a
+        )
+      )
+
+      toast.success("Rescheduled successfully")
+      setRescheduleId(null)
+      setRescheduleDate("")
+      setSelectedRescheduleSlot("")
+      setRescheduleSlots([])
+    } catch (err: any) {
+      const responseData = err?.response?.data
+      console.error("Reschedule error:", {
+        status: err?.response?.status,
+        data: responseData,
+        message: err?.message,
+      })
+      const message =
+        responseData?.message ||
+        responseData?.error ||
+        err?.message ||
+        "Failed to reschedule"
+      toast.error(message)
+    }
+  }
+
   const handleCancel = async (id: string) => {
     if (!window.confirm("Do you want to cancel this appointment?")) return
     try {
@@ -63,42 +183,6 @@ const MyAppointments: React.FC = () => {
       toast.success("Appointment cancelled")
     } catch {
       toast.error("Failed to cancel appointment")
-    }
-  }
-
-  const handleReschedule = async (appt: Appointment) => {
-    const newStart = selectedSlot[appt._id]
-    if (!newStart) {
-      toast.error("Please select a new date and time")
-      return
-    }
-    const selectedDate = new Date(newStart)
-    const minAllowed = new Date(Date.now() + 30 * 60 * 1000)
-    if (selectedDate < minAllowed) {
-      toast.error("Please select a time at least 30 minutes from now")
-      return
-    }
-    if (!window.confirm("Do you want to reschedule this appointment?")) return
-    try {
-      const newEnd = new Date(selectedDate.getTime() + 60 * 60 * 1000)
-      await api.put(`/appointment/${appt._id}/reschedule`, {
-        start: selectedDate,
-        end: newEnd,
-      })
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a._id === appt._id
-            ? {
-                ...a,
-                start: selectedDate.toISOString(),
-                end: newEnd.toISOString(),
-              }
-            : a
-        )
-      )
-      toast.success("Appointment rescheduled")
-    } catch {
-      toast.error("Failed to reschedule")
     }
   }
 
@@ -161,10 +245,10 @@ const MyAppointments: React.FC = () => {
                 >
                   {/* Header */}
                   <div className="flex items-center gap-3 mb-4">
-                    {appt.providerId._id ? (
+                      {(appt.providerId as any)._id ? (
                       <img
-                        src={`${baseURL}/providers/${appt.providerId._id}/avatar`}
-                        alt={appt.providerId.name}
+                        src={`${baseURL}/providers/${(appt.providerId as any)._id}/avatar`}
+                        alt={(appt.providerId as any).name}
                         className="w-10 h-10 rounded-full object-cover border border-border-light dark:border-border-dark"
                       />
                     ) : (
@@ -173,10 +257,10 @@ const MyAppointments: React.FC = () => {
 
                     <div className="flex-1">
                       <h2 className="text-base font-semibold text-text-light dark:text-text-dark">
-                        {appt.providerId.name}
+                        {(appt.providerId as any).name}
                       </h2>
                       <p className="text-xs text-muted-light dark:text-muted-dark">
-                        {appt.providerId.speciality || "No speciality"}
+                        {(appt.providerId as any).speciality || "No speciality"}
                       </p>
                     </div>
 
@@ -217,48 +301,125 @@ const MyAppointments: React.FC = () => {
 
                   {appt.status === "missed" && (
                     <p className="text-xs text-orange-600 dark:text-orange-400 mb-3">
-                      Missed by admin. Please reschedule.
+                      Missed by Provider. Please reschedule.
                     </p>
                   )}
 
-                  {/* Reschedule Input */}
-                  <input
-                    type="datetime-local"
-                    min={getMinDateTime()}
-                    value={selectedSlot[appt._id] || ""}
-                    onChange={(e) =>
-                      setSelectedSlot((prev) => ({
-                        ...prev,
-                        [appt._id]: e.target.value,
-                      }))
-                    }
-                    className="
-                      mb-3 w-full rounded-lg p-2 text-xs
-                      bg-background-light dark:bg-background-dark
-                      border border-border-light dark:border-border-dark
-                      text-text-light dark:text-text-dark
-                      focus:ring-2 focus:ring-primary focus:outline-none
-                      transition-theme
-                    "
-                  />
+                  {rescheduleId === appt._id && (
+                    <div className="mb-3 space-y-2">
+                      <label className="block text-xs font-medium text-text-light dark:text-text-dark">
+                        Select Date
+                      </label>
+                      <input
+                        type="date"
+                        min={getMinDate()}
+                        value={rescheduleDate}
+                        onChange={(e) => {
+                          setRescheduleDate(e.target.value)
+                          setSelectedRescheduleSlot("")
+                        }}
+                        className="
+                          w-full rounded-lg p-2 text-xs
+                          bg-background-light dark:bg-background-dark
+                          border border-border-light dark:border-border-dark
+                          text-text-light dark:text-text-dark
+                          focus:ring-2 focus:ring-primary focus:outline-none
+                          transition-theme
+                        "
+                      />
+
+                      <label className="block text-xs font-medium text-text-light dark:text-text-dark">
+                        Select Slot
+                      </label>
+                      {rescheduleSlots.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {rescheduleSlots.map((slot) => {
+                            const normalizedStatus = String(
+                              slot.status ?? ""
+                            ).toLowerCase()
+                            const isBlockedStatus =
+                              normalizedStatus === "completed" ||
+                              normalizedStatus === "rescheduled" ||
+                              normalizedStatus === "pending"
+                            const isPastSlot = isPastRescheduleSlot(
+                              slot.time,
+                              rescheduleDate
+                            )
+                            const disabled =
+                              slot.isBooked || isBlockedStatus || isPastSlot
+                            return (
+                              <button
+                                key={slot.time}
+                                disabled={disabled}
+                                onClick={() => {
+                                  if (!disabled) {
+                                    setSelectedRescheduleSlot(slot.time)
+                                  }
+                                }}
+                                className={`py-2 rounded-lg text-[11px] font-medium transition
+                                  ${disabled
+                                    ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through"
+                                    : selectedRescheduleSlot === slot.time
+                                      ? "bg-primary text-white"
+                                      : "bg-green-50 dark:bg-emerald-900/20"
+                                  }
+                                `}
+                              >
+                                {slot.time}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-light dark:text-muted-dark">
+                          No available slots for this date
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => handleRescheduleSave(appt)}
+                        disabled={!selectedRescheduleSlot}
+                        className="
+                          w-full py-2 rounded-lg
+                          bg-primary hover:opacity-90 disabled:opacity-50
+                          text-white text-xs font-semibold
+                          transition
+                        "
+                      >
+                        Save Reschedule
+                      </button>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleReschedule(appt)}
+                      onClick={() => {
+                        if (!isActionAllowed(appt.status)) return
+                        if (rescheduleId === appt._id) {
+                          setRescheduleId(null)
+                          setRescheduleDate("")
+                          setSelectedRescheduleSlot("")
+                          setRescheduleSlots([])
+                          return
+                        }
+                        setRescheduleId(appt._id)
+                        setRescheduleDate(getMinDate())
+                        setSelectedRescheduleSlot("")
+                        setRescheduleSlots([])
+                      }}
                       disabled={!isActionAllowed(appt.status)}
                       className={`
                         flex-1 flex items-center justify-center gap-1 py-2 rounded-lg
                         font-medium text-white text-xs transition
-                        ${
-                          !isActionAllowed(appt.status)
-                            ? "bg-gray-400 cursor-not-allowed opacity-50"
-                            : "bg-primary hover:opacity-90"
+                        ${!isActionAllowed(appt.status)
+                          ? "bg-gray-400 cursor-not-allowed opacity-50"
+                          : "bg-primary hover:opacity-90"
                         }
                       `}
                     >
                       <ArrowPathIcon className="w-4 h-4" />
-                      Reschedule
+                      {rescheduleId === appt._id ? "Close" : "Reschedule"}
                     </button>
 
                     <button
@@ -267,10 +428,9 @@ const MyAppointments: React.FC = () => {
                       className={`
                         flex-1 flex items-center justify-center gap-1 py-2 rounded-lg
                         font-medium text-white text-xs transition
-                        ${
-                          !isActionAllowed(appt.status)
-                            ? "bg-gray-400 cursor-not-allowed opacity-50"
-                            : "bg-danger hover:opacity-90"
+                        ${!isActionAllowed(appt.status)
+                          ? "bg-gray-400 cursor-not-allowed opacity-50"
+                          : "bg-danger hover:opacity-90"
                         }
                       `}
                     >
