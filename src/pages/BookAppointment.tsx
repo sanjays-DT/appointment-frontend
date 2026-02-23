@@ -172,7 +172,7 @@ export default function BookAppointment() {
           <h1 className="text-3xl md:text-4xl font-extrabold text-white ">
             Book Appointment
           </h1>
-          <p className="text-green-100 mt-2">
+          <p className="text-green-100  text-2xl mt-2">
             with <span className="font-semibold">{provider.name}</span>
           </p>
         </div>
