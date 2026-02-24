@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/axios.ts";
 import ProviderCard from "../components/ProviderCard.tsx";
+import { Loader2 } from "lucide-react";
 
 interface Provider {
   _id: string;
@@ -16,17 +17,24 @@ interface Provider {
 export default function Providers() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProviders = async () => {
       try {
+        setLoading(true); // 👈 start loading
+
         const res = await api.get<Provider[]>("/providers");
+
         const filtered = res.data.filter(
           (p) => p.categoryId?._id === categoryId
         );
+
         setProviders(filtered);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false); // 👈 stop loading
       }
     };
 
@@ -49,7 +57,11 @@ export default function Providers() {
 
       {/* ===== Providers Grid ===== */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        {providers.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center items-center py-32">
+            <Loader2 className="h-12 w-12 animate-spin text-indigo-600" />
+          </div>
+        ) : providers.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-xl font-semibold text-text-light dark:text-text-dark">
               No providers found

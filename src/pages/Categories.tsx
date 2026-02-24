@@ -3,7 +3,7 @@ import api from "../api/axios.ts";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import CategoryCard from "../components/CategoryCard.tsx";
-import { Search, Folder } from "lucide-react";
+import { Search, Folder, Loader2 } from "lucide-react";
 
 interface Category {
   _id: string;
@@ -15,6 +15,7 @@ export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
   /* ===== FETCH CATEGORIES ===== */
   useEffect(() => {
@@ -25,6 +26,8 @@ export default function Categories() {
         setFilteredCategories(res.data);
       } catch (error) {
         toast.error("Failed to load categories");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -84,7 +87,11 @@ export default function Categories() {
 
       {/* ===== CATEGORIES GRID ===== */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        {filteredCategories.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center items-center py-32">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+          </div>
+        ) : categories.length === 0 ? (
           <div className="text-center py-20">
             <Folder
               className="mx-auto mb-4 text-muted-light dark:text-muted-dark"
@@ -92,9 +99,6 @@ export default function Categories() {
             />
             <p className="text-xl font-semibold text-text-light dark:text-text-dark">
               No categories found
-            </p>
-            <p className="text-muted-light dark:text-muted-dark mt-2">
-              Try searching with a different keyword
             </p>
           </div>
         ) : (
