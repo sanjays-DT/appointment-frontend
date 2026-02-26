@@ -144,7 +144,9 @@ export default function BookAppointment() {
       try {
         const res = await api.get(
           `/providers/${providerId}/slots`,
-          { params: { date } }
+          {
+            params: { date,  t: Date.now()  }
+          }
         );
         setSlots(res.data.slots || []);
       } catch { }
