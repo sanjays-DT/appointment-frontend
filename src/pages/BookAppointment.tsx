@@ -21,7 +21,7 @@ interface Provider {
 export default function BookAppointment() {
   const { providerId } = useParams<{ providerId: string }>();
 
-  const today = new Date().toLocaleDateString("en-CA");
+const today = new Date().toISOString().split("T")[0];
 
   const [provider, setProvider] = useState<Provider | null>(null);
   const [date, setDate] = useState<string>(today);
