@@ -69,38 +69,45 @@ export default function BookAppointment() {
   }, [providerId]);
 
   /* =========================
-     Fetch Slots (Correct API)
+     Fetch Slots from DB
   ========================= */
-  useEffect(() => {
+  const fetchSlotsFromDB = useCallback(async (showLoading = true) => {
     if (!providerId || !date) return;
 
-    const fetchSlots = async () => {
-      try {
-        setLoadingSlots(true);
+    try {
+      if (showLoading) setLoadingSlots(true);
 
-        const res = await api.get(
-          `/providers/${providerId}/slots`,
-          { params: { date } }
-        );
+      const res = await api.get(
+        `/providers/${providerId}/slots`,
+        {
+          params: {
+            date,
+            t: Date.now() // Cache busting
+          }
+        }
+      );
 
-        const backendSlots = Array.isArray(res.data.slots)
-          ? res.data.slots
-          : [];
+      const backendSlots = Array.isArray(res.data.slots)
+        ? res.data.slots
+        : [];
 
-        setSlots(backendSlots);
-        setSelectedSlot("");
+      console.log("Fetched slots from DB:", backendSlots);
+      setSlots(backendSlots);
+      setSelectedSlot("");
 
-      } catch (error) {
-        console.error("Slots fetch error:", error);
-        toast.error("Failed to fetch slots");
-        setSlots([]);
-      } finally {
-        setLoadingSlots(false);
-      }
-    };
-
-    fetchSlots();
+    } catch (error) {
+      console.error("Slots fetch error:", error);
+      toast.error("Failed to fetch slots");
+      setSlots([]);
+    } finally {
+      if (showLoading) setLoadingSlots(false);
+    }
   }, [providerId, date]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchSlotsFromDB(true);
+  }, [fetchSlotsFromDB]);
 
   /* =========================
      Book Slot
@@ -112,16 +119,16 @@ export default function BookAppointment() {
     }
 
     try {
-      await api.post("/appointment/book-slot", {
+      const response = await api.post("/appointment/book-slot", {
         providerId,
         date,
         slotTime: selectedSlot,
         timezone: userTimezone
       });
-
+      console.log("Booking response:", response.data);
       toast.success("Slot booked successfully 🎉");
 
-      // Immediately disable that slot
+      // Update local state optimistically
       setSlots(prev =>
         prev.map(slot =>
           slot.time === selectedSlot
@@ -132,26 +139,25 @@ export default function BookAppointment() {
 
       setSelectedSlot("");
 
+      // CRITICAL: Refetch from DB to ensure consistency
+      // This will get the latest data from the database
+      await fetchSlotsFromDB(false);
+
     } catch (error: any) {
+      console.error("Booking error:", error.response?.data || error);
+
       if (error.response?.status === 400) {
-        // Check if it's a "slot already booked" error
-        if (error.response.data.msg?.includes("already booked") || 
-            error.response.data.msg?.includes("not available")) {
-          
-          // Show a more subtle notification (optional)
+        if (error.response.data.msg?.includes("already booked") ||
+          error.response.data.msg?.includes("not available")) {
+
           toast.info("This slot was just booked by someone else", {
             autoClose: 2000,
             hideProgressBar: true,
           });
-          
-          // Immediately mark this slot as booked in the UI
-          setSlots(prev =>
-            prev.map(slot =>
-              slot.time === selectedSlot
-                ? { ...slot, isBooked: true, isAvailable: false }
-                : slot
-            )
-          );
+
+          // Refetch to get the latest state from DB
+          await fetchSlotsFromDB(false);
+
         } else {
           toast.error(error.response.data.msg || "Slot not available");
         }
@@ -159,23 +165,8 @@ export default function BookAppointment() {
         toast.error("Please login first");
       } else {
         toast.error("Failed to book slot");
-        console.error("Booking error:", error);
       }
 
-      // Always refetch after failure to ensure consistency
-      try {
-        const res = await api.get(
-          `/providers/${providerId}/slots`,
-          {
-            params: { date, t: Date.now() }
-          }
-        );
-        setSlots(res.data.slots || []);
-      } catch (error) {
-        console.error("Failed to refetch slots:", error);
-      }
-      
-      // Clear the selected slot if it's now booked
       setSelectedSlot("");
     }
   };
@@ -184,7 +175,6 @@ export default function BookAppointment() {
      Check if slot is disabled
   ========================= */
   const isSlotDisabled = useCallback((slot: Slot) => {
- 
     return slot.isBooked || slot.isAvailable === false || isPastSlot(slot.time);
   }, [isPastSlot]);
 
@@ -202,21 +192,21 @@ export default function BookAppointment() {
   }
 
   return (
-    <div className="h-[552px] bg-background-light dark:bg-background-dark transition-theme">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark transition-theme">
       {/* Header */}
       <div className="bg-gradient-to-br from-green-500 to-emerald-600 py-14 px-6">
-        <div className="max-w-xl mx-auto text-center relative -top-8">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white ">
+        <div className="max-w-xl mx-auto text-center">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white">
             Book Appointment
           </h1>
-          <p className="text-green-100  text-2xl mt-2">
+          <p className="text-green-100 text-2xl mt-2">
             with <span className="font-semibold">{provider.name}</span>
           </p>
         </div>
       </div>
 
       {/* Booking Card */}
-      <div className="max-w-4xl mx-auto px-6 -mt-10 relative -top-6">
+      <div className="max-w-4xl mx-auto px-6 -mt-10">
         <div
           className="
             bg-surface-light dark:bg-surface-dark
@@ -241,7 +231,7 @@ export default function BookAppointment() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="
-                  w-100px pl-10 pr-4 py-2 rounded-lg
+                  w-full md:w-auto pl-10 pr-4 py-2 rounded-lg
                   bg-background-light dark:bg-background-dark
                   border border-border-light dark:border-border-dark
                   text-text-light dark:text-text-dark
@@ -263,7 +253,7 @@ export default function BookAppointment() {
                 Loading slots...
               </p>
             ) : slots.length > 0 ? (
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                 {slots.map((slot) => {
                   const disabled = isSlotDisabled(slot);
 
@@ -274,7 +264,8 @@ export default function BookAppointment() {
                       onClick={() => {
                         if (!disabled) setSelectedSlot(slot.time);
                       }}
-                      className={`py-2 rounded-lg text-sm font-medium transition
+                      className={`
+                        py-2 px-1 rounded-lg text-sm font-medium transition
                         ${disabled
                           ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through text-gray-600 dark:text-gray-400"
                           : selectedSlot === slot.time
