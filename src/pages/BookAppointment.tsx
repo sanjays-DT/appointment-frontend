@@ -21,7 +21,7 @@ interface Provider {
 export default function BookAppointment() {
   const { providerId } = useParams<{ providerId: string }>();
 
-const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
 
   const [provider, setProvider] = useState<Provider | null>(null);
   const [date, setDate] = useState<string>(today);
@@ -134,7 +134,27 @@ const today = new Date().toISOString().split("T")[0];
 
     } catch (error: any) {
       if (error.response?.status === 400) {
-        toast.error(error.response.data.msg || "Slot not available");
+        // Check if it's a "slot already booked" error
+        if (error.response.data.msg?.includes("already booked") || 
+            error.response.data.msg?.includes("not available")) {
+          
+          // Show a more subtle notification (optional - you can remove this if you don't want any toast)
+          toast.info("This slot was just booked by someone else", {
+            autoClose: 2000,
+            hideProgressBar: true,
+          });
+          
+          // Immediately mark this slot as booked in the UI
+          setSlots(prev =>
+            prev.map(slot =>
+              slot.time === selectedSlot
+                ? { ...slot, isBooked: true }
+                : slot
+            )
+          );
+        } else {
+          toast.error(error.response.data.msg || "Slot not available");
+        }
       } else if (error.response?.status === 401) {
         toast.error("Please login first");
       } else {
@@ -142,16 +162,19 @@ const today = new Date().toISOString().split("T")[0];
         console.error("Booking error:", error);
       }
 
-      // Always refetch after failure (important for race condition)
+      // Always refetch after failure to ensure consistency
       try {
         const res = await api.get(
           `/providers/${providerId}/slots`,
           {
-            params: { date,  t: Date.now()  }
+            params: { date, t: Date.now() }
           }
         );
         setSlots(res.data.slots || []);
       } catch { }
+      
+      // Clear the selected slot if it's now booked
+      setSelectedSlot("");
     }
   };
 
@@ -234,7 +257,7 @@ const today = new Date().toISOString().split("T")[0];
                 {slots.map((slot) => {
                   // Disable if booked, past, or provider marked unavailable
                   const disabled =
-                    slot.isBooked || isPastSlot(slot.time) || slot.isAvailable === false; // <-- changed
+                    slot.isBooked || isPastSlot(slot.time) || slot.isAvailable === false;
 
                   return (
                     <button
@@ -244,15 +267,13 @@ const today = new Date().toISOString().split("T")[0];
                         if (!disabled) setSelectedSlot(slot.time);
                       }}
                       className={`py-2 rounded-lg text-sm font-medium transition
-        ${slot.isBooked || isPastSlot(slot.time)
-                          ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through"
-                          : slot.isAvailable === false
-                            ? "bg-yellow-500 text-white cursor-not-allowed" // <-- changed
-                            : selectedSlot === slot.time
-                              ? "bg-primary text-white"
-                              : "bg-green-50 dark:bg-emerald-900/20"
+                        ${disabled
+                          ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through text-gray-600 dark:text-gray-400"
+                          : selectedSlot === slot.time
+                            ? "bg-primary text-white"
+                            : "bg-green-50 dark:bg-emerald-900/20 hover:bg-green-100 dark:hover:bg-emerald-800/30 text-text-light dark:text-text-dark"
                         }
-      `}
+                      `}
                     >
                       {slot.time}
                     </button>
@@ -272,7 +293,7 @@ const today = new Date().toISOString().split("T")[0];
             disabled={!selectedSlot}
             className="
               w-full py-3 rounded-xl
-              bg-primary hover:opacity-90 disabled:opacity-50
+              bg-primary hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed
               text-white font-semibold
               transition shadow-md
             "
