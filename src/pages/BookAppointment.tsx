@@ -303,9 +303,6 @@ export default function BookAppointment() {
                       `}
                     >
                       {slot.time}
-                      {slot.isBooked && (
-                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                      )}
                     </button>
                   );
                 })}
