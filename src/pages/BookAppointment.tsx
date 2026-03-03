@@ -11,6 +11,8 @@ interface Slot {
   time: string;
   isBooked: boolean;
   isAvailable?: boolean;
+  startUTC?: string;
+  endUTC?: string;
 }
 
 interface Provider {
@@ -77,21 +79,23 @@ export default function BookAppointment() {
     try {
       if (showLoading) setLoadingSlots(true);
 
+      // Send date and timezone to backend
       const res = await api.get(
         `/providers/${providerId}/slots`,
-        {
-          params: {
+        { 
+          params: { 
             date,
-            t: Date.now() // Cache busting
-          }
+            timezone: userTimezone, // Send user's timezone
+            t: Date.now()
+          } 
         }
       );
 
-      const backendSlots = Array.isArray(res.data.slots)
-        ? res.data.slots
-        : [];
+      console.log("Raw slots from DB:", res.data.slots);
+      
+      const backendSlots = Array.isArray(res.data.slots) ? res.data.slots : [];
 
-      console.log("Fetched slots from DB:", backendSlots);
+      // The backend should return slots with isBooked flag properly set
       setSlots(backendSlots);
       setSelectedSlot("");
 
@@ -102,7 +106,7 @@ export default function BookAppointment() {
     } finally {
       if (showLoading) setLoadingSlots(false);
     }
-  }, [providerId, date]);
+  }, [providerId, date, userTimezone]);
 
   // Initial fetch
   useEffect(() => {
@@ -110,7 +114,7 @@ export default function BookAppointment() {
   }, [fetchSlotsFromDB]);
 
   /* =========================
-     Book Slot
+     Book Slot - Send all required data
   ========================= */
   const bookSlot = async () => {
     if (!selectedSlot) {
@@ -118,17 +122,32 @@ export default function BookAppointment() {
       return;
     }
 
+    // Find the selected slot to verify it's not already booked
+    const selectedSlotData = slots.find(slot => slot.time === selectedSlot);
+    if (selectedSlotData?.isBooked) {
+      toast.error("This slot is already booked");
+      return;
+    }
+
     try {
+      console.log("Booking slot:", {
+        providerId,
+        date,
+        slotTime: selectedSlot,
+        timezone: userTimezone
+      });
+
       const response = await api.post("/appointment/book-slot", {
         providerId,
         date,
         slotTime: selectedSlot,
         timezone: userTimezone
       });
+
       console.log("Booking response:", response.data);
       toast.success("Slot booked successfully 🎉");
 
-      // Update local state optimistically
+      // Immediately mark this slot as booked in the UI
       setSlots(prev =>
         prev.map(slot =>
           slot.time === selectedSlot
@@ -141,32 +160,38 @@ export default function BookAppointment() {
 
       // CRITICAL: Refetch from DB to ensure consistency
       // This will get the latest data from the database
-      await fetchSlotsFromDB(false);
+      setTimeout(async () => {
+        await fetchSlotsFromDB(false);
+      }, 500);
 
     } catch (error: any) {
-      console.error("Booking error:", error.response?.data || error);
-
+      console.error("Booking error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
       if (error.response?.status === 400) {
-        if (error.response.data.msg?.includes("already booked") ||
-          error.response.data.msg?.includes("not available")) {
-
+        const errorMsg = error.response.data.msg || error.response.data.message;
+        
+        if (errorMsg?.includes("already booked") || errorMsg?.includes("not available")) {
+          
           toast.info("This slot was just booked by someone else", {
-            autoClose: 2000,
-            hideProgressBar: true,
+            autoClose: 3000,
           });
-
+          
           // Refetch to get the latest state from DB
           await fetchSlotsFromDB(false);
-
+          
         } else {
-          toast.error(error.response.data.msg || "Slot not available");
+          toast.error(errorMsg || "Slot not available");
         }
       } else if (error.response?.status === 401) {
         toast.error("Please login first");
       } else {
         toast.error("Failed to book slot");
       }
-
+      
       setSelectedSlot("");
     }
   };
@@ -201,6 +226,9 @@ export default function BookAppointment() {
           </h1>
           <p className="text-green-100 text-2xl mt-2">
             with <span className="font-semibold">{provider.name}</span>
+          </p>
+          <p className="text-green-100 text-sm mt-1">
+            All times shown in {userTimezone}
           </p>
         </div>
       </div>
@@ -265,7 +293,7 @@ export default function BookAppointment() {
                         if (!disabled) setSelectedSlot(slot.time);
                       }}
                       className={`
-                        py-2 px-1 rounded-lg text-sm font-medium transition
+                        py-2 px-1 rounded-lg text-sm font-medium transition relative
                         ${disabled
                           ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed opacity-50 line-through text-gray-600 dark:text-gray-400"
                           : selectedSlot === slot.time
@@ -275,6 +303,9 @@ export default function BookAppointment() {
                       `}
                     >
                       {slot.time}
+                      {slot.isBooked && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                      )}
                     </button>
                   );
                 })}
@@ -285,6 +316,13 @@ export default function BookAppointment() {
               </p>
             )}
           </div>
+
+          {/* Selected Slot Display */}
+          {selectedSlot && (
+            <div className="text-sm text-primary font-medium">
+              Selected: {selectedSlot}
+            </div>
+          )}
 
           {/* Confirm Button */}
           <button
