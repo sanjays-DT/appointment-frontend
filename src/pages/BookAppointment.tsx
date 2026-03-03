@@ -28,6 +28,7 @@ const today = new Date().toISOString().split("T")[0];
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   /* =================================================
      Disable past slots (only for today)
@@ -115,6 +116,7 @@ const today = new Date().toISOString().split("T")[0];
         providerId,
         date,
         slotTime: selectedSlot,
+        timezone: userTimezone
       });
 
       toast.success("Slot booked successfully 🎉");
