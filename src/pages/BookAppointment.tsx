@@ -125,7 +125,7 @@ export default function BookAppointment() {
       setSlots(prev =>
         prev.map(slot =>
           slot.time === selectedSlot
-            ? { ...slot, isBooked: true }
+            ? { ...slot, isBooked: true, isAvailable: false }
             : slot
         )
       );
@@ -138,7 +138,7 @@ export default function BookAppointment() {
         if (error.response.data.msg?.includes("already booked") || 
             error.response.data.msg?.includes("not available")) {
           
-          // Show a more subtle notification (optional - you can remove this if you don't want any toast)
+          // Show a more subtle notification (optional)
           toast.info("This slot was just booked by someone else", {
             autoClose: 2000,
             hideProgressBar: true,
@@ -148,7 +148,7 @@ export default function BookAppointment() {
           setSlots(prev =>
             prev.map(slot =>
               slot.time === selectedSlot
-                ? { ...slot, isBooked: true }
+                ? { ...slot, isBooked: true, isAvailable: false }
                 : slot
             )
           );
@@ -171,12 +171,22 @@ export default function BookAppointment() {
           }
         );
         setSlots(res.data.slots || []);
-      } catch { }
+      } catch (error) {
+        console.error("Failed to refetch slots:", error);
+      }
       
       // Clear the selected slot if it's now booked
       setSelectedSlot("");
     }
   };
+
+  /* =========================
+     Check if slot is disabled
+  ========================= */
+  const isSlotDisabled = useCallback((slot: Slot) => {
+ 
+    return slot.isBooked || slot.isAvailable === false || isPastSlot(slot.time);
+  }, [isPastSlot]);
 
   /* =========================
      Loading Screen
@@ -255,9 +265,7 @@ export default function BookAppointment() {
             ) : slots.length > 0 ? (
               <div className="grid grid-cols-5 gap-2">
                 {slots.map((slot) => {
-                  // Disable if booked, past, or provider marked unavailable
-                  const disabled =
-                    slot.isBooked || isPastSlot(slot.time) || slot.isAvailable === false;
+                  const disabled = isSlotDisabled(slot);
 
                   return (
                     <button
