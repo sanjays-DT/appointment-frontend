@@ -217,7 +217,7 @@ export default function BookAppointment() {
   }
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark transition-theme">
+    <div className="min-h-[552px] bg-background-light dark:bg-background-dark transition-theme">
       {/* Header */}
       <div className="bg-gradient-to-br from-green-500 to-emerald-600 py-14 px-6">
         <div className="max-w-xl mx-auto text-center">
