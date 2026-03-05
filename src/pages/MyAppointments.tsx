@@ -20,6 +20,7 @@ interface Appointment {
     speciality?: string
   }
   | string
+  | null  // Add null to the type
   start: string
   end: string
   status: string
@@ -65,6 +66,7 @@ const MyAppointments: React.FC = () => {
   const filteredAppointments = useMemo(() => {
     const now = new Date()
     return appointments.filter((appt) => {
+      if (!appt || !appt.end) return false
       const end = new Date(appt.end)
 
       switch (filter) {
@@ -100,7 +102,6 @@ const MyAppointments: React.FC = () => {
         isBooked: slot.isBooked || (slot.isAvailable === false)
       }));
 
-
       setRescheduleSlots(normalizedSlots)
     } catch (err: any) {
       console.error("Reschedule fetch error:", err?.response?.data || err)
@@ -112,7 +113,11 @@ const MyAppointments: React.FC = () => {
     const fetchAppointments = async () => {
       try {
         const res = await api.get("/appointment/me")
-        setAppointments(res.data.appointments)
+        // Ensure appointments is an array and filter out any null items
+        const appointmentsData = Array.isArray(res.data.appointments) 
+          ? res.data.appointments.filter((appt: any) => appt != null)
+          : []
+        setAppointments(appointmentsData)
       } catch {
         toast.error("Failed to load appointments")
       } finally {
@@ -125,10 +130,59 @@ const MyAppointments: React.FC = () => {
   useEffect(() => {
     if (!rescheduleId || !rescheduleDate) return
     const appt = appointments.find((a) => a._id === rescheduleId)
-    const providerIdValue =typeof appt?.providerId === "object"? appt.providerId._id : undefined
+    if (!appt) return
+    
+    // Safely get provider ID
+    const providerIdValue = getProviderId(appt.providerId)
     if (!providerIdValue) return
+    
     fetchRescheduleSlots(providerIdValue, rescheduleDate)
   }, [appointments, rescheduleDate, rescheduleId])
+
+  // Helper function to safely get provider ID
+  const getProviderId = (provider: any): string | null => {
+    if (!provider) return null
+    if (typeof provider === 'string') return provider
+    if (typeof provider === 'object' && provider._id) return provider._id
+    return null
+  }
+
+  // Helper function to safely get provider info
+  const getProviderInfo = (provider: any) => {
+    if (!provider) {
+      return {
+        id: null,
+        name: 'Provider Unavailable',
+        speciality: 'Not specified',
+        hasImage: false
+      }
+    }
+    
+    if (typeof provider === 'string') {
+      return {
+        id: provider,
+        name: 'Provider',
+        speciality: 'Not specified',
+        hasImage: true // We can still try to load image with ID
+      }
+    }
+    
+    if (typeof provider === 'object') {
+      return {
+        id: provider._id || null,
+        name: provider.name || 'Provider',
+        speciality: provider.speciality || 'Not specified',
+        hasImage: !!provider._id
+      }
+    }
+    
+    return {
+      id: null,
+      name: 'Provider Unavailable',
+      speciality: 'Not specified',
+      hasImage: false
+    }
+  }
 
   const handleRescheduleSave = async (appt: Appointment) => {
     if (!rescheduleDate || !selectedRescheduleSlot) {
@@ -155,10 +209,7 @@ const MyAppointments: React.FC = () => {
         slotTime: selectedRescheduleSlot,
       }
 
-      const providerIdValue =
-        typeof appt.providerId === "string"
-          ? appt.providerId
-          : appt.providerId?._id
+      const providerIdValue = getProviderId(appt.providerId)
       if (providerIdValue && /^[a-f\d]{24}$/i.test(providerIdValue)) {
         payload.providerId = providerIdValue
       }
@@ -256,8 +307,12 @@ const MyAppointments: React.FC = () => {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredAppointments.map((appt) => {
+              // Skip if appointment is null or doesn't have _id
+              if (!appt || !appt._id) return null
+              
               const startDate = new Date(appt.start)
               const endDate = new Date(appt.end)
+              const providerInfo = getProviderInfo(appt.providerId)
 
               const statusStyles: { [key: string]: string } = {
                 approved:
@@ -277,34 +332,46 @@ const MyAppointments: React.FC = () => {
                   key={appt._id}
                   className={`
                     bg-surface-light dark:bg-surface-dark
-                    border-l-4 ${statusStyles[appt.status]}
+                    border-l-4 ${statusStyles[appt.status] || 'border-l-gray-400'}
                     rounded-2xl shadow-md hover:shadow-xl
                     transition-theme p-4 flex flex-col justify-between
                   `}
                 >
                   {/* Header */}
                   <div className="flex items-center gap-3 mb-4">
-                      {(appt.providerId as any)._id ? (
+                    {providerInfo.hasImage && providerInfo.id ? (
                       <img
-                        src={`${baseURL}/providers/${(appt.providerId as any)._id}/avatar`}
-                        alt={(appt.providerId as any).name}
+                        src={`${baseURL}/providers/${providerInfo.id}/avatar`}
+                        alt={providerInfo.name}
                         className="w-10 h-10 rounded-full object-cover border border-border-light dark:border-border-dark"
+                        onError={(e) => {
+                          // Hide image on error and show fallback
+                          e.currentTarget.style.display = 'none'
+                          const parent = e.currentTarget.parentElement
+                          if (parent) {
+                            const fallbackIcon = parent.querySelector('.fallback-icon')
+                            if (fallbackIcon) {
+                              fallbackIcon.classList.remove('hidden')
+                            }
+                          }
+                        }}
                       />
-                    ) : (
-                      <UserIcon className="w-10 h-10 text-muted-light dark:text-muted-dark" />
-                    )}
+                    ) : null}
+                    
+                    {/* Always show UserIcon as fallback */}
+                    <UserIcon className={`w-10 h-10 text-muted-light dark:text-muted-dark ${providerInfo.hasImage && providerInfo.id ? 'hidden' : ''} fallback-icon`} />
 
                     <div className="flex-1">
                       <h2 className="text-base font-semibold text-text-light dark:text-text-dark">
-                        {(appt.providerId as any).name}
+                        {providerInfo.name}
                       </h2>
                       <p className="text-xs text-muted-light dark:text-muted-dark">
-                        {(appt.providerId as any).speciality || "No speciality"}
+                        {providerInfo.speciality}
                       </p>
                     </div>
 
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold text-text-light dark:text-text-dark">
-                      {appt.status.toUpperCase()}
+                      {appt.status?.toUpperCase() || 'UNKNOWN'}
                     </span>
                   </div>
 
@@ -312,29 +379,29 @@ const MyAppointments: React.FC = () => {
                   <div className="mb-3 flex flex-col gap-1 text-xs text-muted-light dark:text-muted-dark">
                     <p className="flex items-center gap-1">
                       <CalendarIcon className="w-3 h-3 opacity-70" />
-                      {startDate.toLocaleDateString("en-US", {
+                      {!isNaN(startDate.getTime()) ? startDate.toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
-                      })}{" "}
+                      }) : 'Invalid date'}{" "}
                       -{" "}
-                      {endDate.toLocaleDateString("en-US", {
+                      {!isNaN(endDate.getTime()) ? endDate.toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
-                      })}
+                      }) : 'Invalid date'}
                     </p>
                     <p className="flex items-center gap-1">
                       <ClockIcon className="w-3 h-3 opacity-70" />
-                      {startDate.toLocaleTimeString([], {
+                      {!isNaN(startDate.getTime()) ? startDate.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
-                      })}{" "}
+                      }) : 'Invalid time'}{" "}
                       -{" "}
-                      {endDate.toLocaleTimeString([], {
+                      {!isNaN(endDate.getTime()) ? endDate.toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
-                      })}
+                      }) : 'Invalid time'}
                     </p>
                   </div>
 
